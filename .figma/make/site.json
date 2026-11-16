@@ -1,0 +1,17 @@
+{
+  "title": "angelaghariaportfolio",
+  "description": "high-value visual content from UX/UI and HCI project files, portfolio.",
+  "robots": {
+    "index": false
+  },
+  "icons": {
+    "icon": "/.figma/make/favicon.png"
+  },
+  "openGraph": {
+    "image": "/.figma/make/social-image.png"
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
