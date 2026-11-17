@@ -1,5 +1,6 @@
-import { useRef, useState } from "react"
-import { ArrowRight } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import { playSway } from "../lib/portraitSound"
+import { ArrowRight, Volume2, VolumeX } from "lucide-react"
 import { media } from "../lib/media"
 import { Link } from "../lib/router"
 import { Img } from "./system/Img"
@@ -23,14 +24,29 @@ export function PortraitReveal() {
   const stage = useRef<HTMLDivElement>(null)
   const open = index >= 0
 
+  const [sound, setSound] = useState(true)
+  const audio = useRef<AudioContext | null>(null)
+  useEffect(() => () => { void audio.current?.close(); audio.current = null }, [])
+
+  function sway(to: number) {
+    if (!sound || !window.AudioContext) return
+    try {
+      const ctx = audio.current ??= new AudioContext()
+      if (ctx.state !== "running") void ctx.resume().catch(() => {})
+      playSway(ctx, side, to)
+    } catch { /* Audio may be unavailable on this device. */ }
+  }
+
   function advance() {
     if (open && stage.current?.getAnimations().some(animation => animation.playState === "running")) return
+    sway(side === 1 ? -1 : 1)
     setPrevious(index)
     setIndex((index + 1) % facts.length)
     setSide(side === 1 ? -1 : 1)
   }
 
   function close() {
+    sway(0)
     setPrevious(-1)
     setIndex(-1)
     setSide(0)
@@ -64,6 +80,9 @@ export function PortraitReveal() {
         {open && <span className="text-xs text-neutral-600">{index + 1} of {facts.length}</span>}
         <button ref={primary} type="button" aria-controls="portrait-stage" aria-expanded={open} className={control} onClick={advance}>
           {open ? "Next" : "A little about me"} <ArrowRight size={15} aria-hidden="true" />
+        </button>
+        <button type="button" className={control} aria-label="Sway sound" aria-pressed={sound} title={sound ? "Mute sway sound" : "Enable sway sound"} onClick={() => { if (sound) void audio.current?.suspend().catch(() => {}); setSound(!sound) }}>
+          {sound ? <Volume2 size={16} /> : <VolumeX size={16} />}
         </button>
         {open && <button type="button" onClick={close} className={control}>Close</button>}
       </div>
