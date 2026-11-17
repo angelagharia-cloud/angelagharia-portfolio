@@ -11,7 +11,7 @@ import { Reveal } from "./system/Reveal"
 import { SectionLabel } from "./system/SectionLabel"
 import { ProjectCover } from "./covers"
 
-const portrait = media("portrait")
+import { PortraitReveal } from "./PortraitReveal"
 
 const CREDENTIALS = [
   ["BSc Product Design", "Maynooth University"],
@@ -176,23 +176,7 @@ function Hero() {
           transition={{ duration: 1.1, ease: EASE_OUT, delay: 0.12 }}
           className="relative mx-auto w-full max-w-[19rem] sm:max-w-[23rem] lg:col-span-5 lg:max-w-none"
         >
-          <div className="relative aspect-[5/6] lg:aspect-auto lg:h-[min(44rem,calc(100svh_-_7rem))]">
-            <div
-              aria-hidden="true"
-              className="absolute inset-x-[7%] top-[3%] bottom-0 rounded-t-full bg-gradient-to-b from-[#e9eefc] via-[#f1ecfb] to-[#fbf0f6]"
-            />
-            <div
-              aria-hidden="true"
-              className="absolute inset-x-[7%] top-[3%] bottom-0 rounded-t-full ring-1 ring-inset ring-neutral-900/[0.04]"
-            />
-            <Img
-              media={portrait}
-              alt="Angel Agharia"
-              priority
-              sizes="(min-width: 1024px) 18rem, 11rem"
-              className="absolute inset-x-0 bottom-0 mx-auto h-[94%] w-auto object-contain object-bottom drop-shadow-[0_24px_30px_rgba(15,23,42,0.18)]"
-            />
-          </div>
+          <PortraitReveal />
         </motion.div>
       </div>
     </section>

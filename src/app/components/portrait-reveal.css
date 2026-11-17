@@ -1,0 +1,41 @@
+@property --portrait-position {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+.portrait-stage {
+  --portrait-position: 0;
+  --edge: calc(50% + var(--portrait-position) * 34%);
+  overflow: clip;
+  container-type: inline-size;
+  transition: --portrait-position 560ms cubic-bezier(.45, 0, .25, 1);
+}
+.portrait-stage[data-side="1"] { --portrait-position: 1; }
+.portrait-stage[data-side="-1"] { --portrait-position: -1; }
+.portrait-figure {
+  position: absolute;
+  bottom: 0;
+  left: var(--edge);
+  height: 94%;
+  pointer-events: none;
+  transform-origin: center bottom;
+  transform: translateX(-50%) rotate(calc(var(--portrait-position) * 3deg)) scale(calc(1 - var(--portrait-position) * var(--portrait-position) * .22));
+}
+.portrait-note { position: absolute; inset: 0; }
+.portrait-note[data-direction="1"] { clip-path: inset(0 calc(100% - var(--edge)) 0 0); }
+.portrait-note[data-direction="-1"] { clip-path: inset(0 0 0 var(--edge)); }
+.portrait-copy {
+  position: absolute;
+  top: 56%;
+  transform: translateY(-50%);
+  width: 47%;
+  font: 400 clamp(1rem, 5.8cqw, 2rem)/1.17 "DM Serif Display", Georgia, serif;
+  color: #282334;
+}
+.portrait-note[data-direction="1"] .portrait-copy { left: 13%; }
+.portrait-note[data-direction="-1"] .portrait-copy { right: 13%; }
+.portrait-copy a { font-family: Inter, sans-serif; }
+@media (prefers-reduced-motion: reduce) {
+  .portrait-stage { transition: none; }
+}
