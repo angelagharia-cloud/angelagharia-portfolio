@@ -144,3 +144,8 @@
 *.stl                filter=lfs diff=lfs merge=lfs -text
 *.nc                 filter=lfs diff=lfs merge=lfs -text
 *.mat                filter=lfs diff=lfs merge=lfs -text
+
+# Pages checkout serves these recovered web assets directly from Git.
+src/assets/figma/* -filter -diff -merge -text
+src/assets/fonts/* -filter -diff -merge -text
+src/imports/opt/*.webp -filter -diff -merge -text

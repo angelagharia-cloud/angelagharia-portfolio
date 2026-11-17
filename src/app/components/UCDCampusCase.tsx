@@ -9,9 +9,9 @@ import { KeyLearnings } from './KeyLearnings';
 import { ToolsUsed } from './ToolsUsed';
 import { Users, Lightbulb, ClipboardList, PenTool, BarChart, MessagesSquare } from 'lucide-react';
 
-import ucdImage1 from '../../imports/ucd-campus/campus-synthesis.jpg';
-import ucdImage2 from '../../imports/ucd-campus/campus-stall.jpg';
-import ucdImage3 from '../../imports/ucd-campus/campus-wheel.jpg';
+import ucdImage1 from '../../imports/opt/ucd-synthesis-1600.webp';
+import ucdImage2 from '../../imports/opt/ucd-stall-1536.webp';
+import ucdImage3 from '../../imports/opt/ucd-wheel-1600.webp';
 import { UcdLogo } from './UcdLogo';
 
 export function UCDCampusCase() {
