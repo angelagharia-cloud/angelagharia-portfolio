@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "motion/react"
 import { ArrowUp, ArrowUpRight, Check, Copy } from "lucide-react"
 import { SectionLabel } from "./system/SectionLabel"
 
-const EMAIL = "angel.agharia@ucdconnect.ie"
+const EMAIL = "angelagharia@gmail.com"
 const PHONE = "+353 89 222 5859"
 const LINKEDIN = "https://www.linkedin.com/in/angel-agharia"
 
