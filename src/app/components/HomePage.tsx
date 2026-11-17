@@ -12,6 +12,7 @@ import { SectionLabel } from "./system/SectionLabel"
 import { ProjectCover } from "./covers"
 
 import { PortraitReveal } from "./PortraitReveal"
+import { SeasonalHeroAccents } from "./SeasonalHeroAccents"
 
 const CREDENTIALS = [
   ["BSc Product Design", "Maynooth University"],
@@ -113,7 +114,8 @@ function Hero() {
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(56rem_36rem_at_12%_42%,rgba(59,130,246,0.06),transparent_62%),radial-gradient(46rem_34rem_at_88%_18%,rgba(168,85,247,0.06),transparent_60%)]"
       />
-      <div className="shell grid items-end gap-x-10 gap-y-14 pt-14 sm:pt-20 lg:min-h-[calc(100svh_-_4rem)] lg:grid-cols-12 lg:pt-12">
+      <SeasonalHeroAccents />
+      <div className="relative z-10 shell grid items-end gap-x-10 gap-y-14 pt-14 sm:pt-20 lg:min-h-[calc(100svh_-_4rem)] lg:grid-cols-12 lg:pt-12">
         <div className="lg:col-span-7 lg:self-center lg:pb-12">
           <motion.p {...intro(0)} className="t-eyebrow text-neutral-500">
             UX/UI &amp; Product Designer
