@@ -1,0 +1,70 @@
+/* A quiet winter detail; intentionally stays behind the portfolio hero. */
+.seasonal-hero {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.seasonal-hero__wash {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(34rem 22rem at 98% 12%, rgba(129, 182, 191, .065), transparent 72%),
+    radial-gradient(32rem 24rem at 0% 90%, rgba(137, 171, 157, .045), transparent 72%);
+}
+
+.seasonal-hero__mote {
+  position: absolute;
+  display: block;
+  opacity: .32;
+  color: #719eac;
+  will-change: transform;
+  animation: seasonal-winter-drift 18s ease-in-out infinite alternate;
+}
+
+.seasonal-hero__mote svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.seasonal-hero__mote--sparkle {
+  color: #b49a69;
+  opacity: .26;
+}
+
+@keyframes seasonal-winter-drift {
+  0% {
+    transform: translate3d(-5px, -10px, 0) rotate(-12deg);
+    opacity: .15;
+  }
+  50% {
+    transform: translate3d(10px, 8px, 0) rotate(8deg);
+    opacity: .36;
+  }
+  100% {
+    transform: translate3d(-3px, 24px, 0) rotate(15deg);
+    opacity: .19;
+  }
+}
+
+@media (max-width: 640px) {
+  .seasonal-hero__mote:nth-of-type(n + 9) {
+    display: none;
+  }
+
+  .seasonal-hero__mote {
+    opacity: .22;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seasonal-hero__mote {
+    animation: none;
+    will-change: auto;
+    opacity: .24;
+  }
+}
