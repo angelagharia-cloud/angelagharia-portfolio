@@ -45,7 +45,7 @@ jobs:
       - name: Build portfolio for GitHub Pages
         run: |
           cp deploy/github-index.html index.html
-          pnpm exec vite build --config vite.config.ts --base /angelagharia-portfolio/
+          pnpm exec vite build --config vite.config.ts --base /
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
