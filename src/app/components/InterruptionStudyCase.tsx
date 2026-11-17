@@ -96,7 +96,7 @@ export function InterruptionStudyCase() {
                   <span className="font-semibold text-neutral-900">Independent Samples t-test</span>
                 </div>
                 <p className="text-neutral-700 text-sm">
-                  t(62) = 7.46, p &lt; .001 — a statistically significant difference confirming the hypothesis
+                  t(62) = 7.46, p &lt; .001 (statistically significant)
                 </p>
               </div>
 
@@ -106,7 +106,7 @@ export function InterruptionStudyCase() {
                   <span className="font-semibold text-neutral-900">Effect Size</span>
                 </div>
                 <p className="text-neutral-700 text-sm">
-                  Cohen's d = 1.86 — a large effect size indicating strong practical significance
+                  Cohen's d = 1.86 (large effect size)
                 </p>
               </div>
 
@@ -116,7 +116,7 @@ export function InterruptionStudyCase() {
                   <span className="font-semibold text-neutral-900">Auditory Condition</span>
                 </div>
                 <p className="text-neutral-700 text-sm">
-                  M = 67.94, SD = 11.05 — significantly higher scores than visual condition
+                  M = 67.94, SD = 11.05 (auditory interruptions)
                 </p>
               </div>
 
@@ -126,7 +126,7 @@ export function InterruptionStudyCase() {
                   <span className="font-semibold text-neutral-900">Visual Condition</span>
                 </div>
                 <p className="text-neutral-700 text-sm">
-                  M = 46.63, SD = 11.8 — lower scores due to resource competition with the visual task
+                  M = 46.63, SD = 11.8 (visual interruptions)
                 </p>
               </div>
             </div>
@@ -187,7 +187,7 @@ export function InterruptionStudyCase() {
               heading="Key Interpretation"
               content={[
                 "The null hypothesis was rejected. Auditory interruptions were significantly less disruptive than visual ones during Tetris gameplay (t(62) = 7.46, p < .001, Cohen's d = 1.86).",
-                "This aligns with Wickens' Multiple Resource Theory — Tetris is a high visual-spatial load task, so visual interruptions compete for the same cognitive resources, while auditory interruptions use a separate channel, reducing interference."
+                "Wickens' Multiple Resource Theory offers one explanation. Tetris already demands visual attention, so an on-screen interruption competes with the game. A sound uses a different channel."
               ]}
             />
           </div>
@@ -195,8 +195,8 @@ export function InterruptionStudyCase() {
             <TextBlock
               heading="Design Implications"
               content={[
-                "These findings directly inform the design of adaptive notification systems. In visual-heavy tasks (e.g., driving, data dashboards, gaming), notifications should default to auditory modality to minimize cognitive disruption.",
-                "Future work could develop intelligent systems that detect the user's current cognitive load and automatically switch interruption modality — a concept with applications in automotive UX, healthcare monitoring, and enterprise software."
+                "During a visually demanding task like Tetris, a sound may be easier to respond to than an on-screen alert.",
+                "A follow-up study could test whether switching between sound and on-screen alerts helps as the visual demands of a task change."
               ]}
             />
           </div>
@@ -272,7 +272,7 @@ export function InterruptionStudyCase() {
           {
             icon: 'book',
             title: 'Cross-Disciplinary Impact',
-            description: 'HCI research findings have direct applications in system design and UX — skills that transfer seamlessly across technical domains.'
+            description: 'This study gave me a way to test a design choice: compare two types of alert while people carry out the same task.'
           },
           {
             icon: 'heart',

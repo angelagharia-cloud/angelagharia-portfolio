@@ -64,7 +64,7 @@ export function UCDCampusCase() {
               heading="Engaging the Community"
               content={[
                 "We set up an interactive stall in a high-traffic area, using quick-question prompts and sticker voting to lower the barrier to entry. This tactical placement helped us intercept students during their natural daily routines.",
-                "To boost participation, we introduced a prize-led mechanic—a spinning wheel with small rewards—which served as an excellent icebreaker and helped us engage over 180 students in meaningful, face-to-face conversations."
+                "We invited students to spin a wheel for a small prize. It gave us a way to start conversations, and we spoke with over 180 students face to face."
               ]}
             />
           </div>
@@ -106,7 +106,7 @@ export function UCDCampusCase() {
               heading="Designing the Research Materials"
               content={[
                 "I was responsible for creating accessible and engaging survey questions. The language was intentionally kept informal and relatable to encourage honest responses rather than 'survey fatigue'.",
-                "We built visual response boards where students could place stickers to vote on specific topics. This visible accumulation of data created a sense of shared experience—students could immediately see they weren't alone in their struggles or opinions.",
+                "Students used stickers to vote on topics on our response boards. As the votes came in, they could see which concerns they shared with others.",
                 "Simultaneously, a Google Form was distributed across digital channels to reach those who couldn't attend the physical stall, securing a robust dataset of 400+ responses."
               ]}
             />
@@ -140,7 +140,7 @@ export function UCDCampusCase() {
           <div>
             <h3 className="text-2xl font-semibold text-neutral-900 mb-6">From Notes to Narrative</h3>
             <p className="text-neutral-700 leading-relaxed mb-6">
-              The influx of raw data—ranging from digital survey metrics to handwritten notes and sticker clusters—required careful organization. We engaged in collaborative thematic analysis, physically sorting through responses to identify recurring patterns regarding commute stress, campus facilities, and social integration.
+              We sorted the survey responses, handwritten notes and sticker votes together. Three themes kept coming up: the stress of commuting, campus facilities and finding a place in the campus community.
             </p>
             <ul className="space-y-4">
               <li className="flex items-start gap-3">

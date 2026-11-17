@@ -94,7 +94,7 @@ export function StammerHaloCase() {
         <div className="mb-12 border-l-4 border-blue-600 bg-blue-50 p-8 rounded-r-lg">
           <h3 className="text-2xl text-blue-900 mb-4 font-semibold">The Challenge</h3>
           <p className="text-lg text-blue-800 leading-relaxed">
-            How might we provide discreet, real-time support for people who stammer while helping them understand their patterns and build confidence—without adding stigma or drawing unwanted attention?
+            How could we help people who stammer recognise their patterns and build confidence while keeping real-time support discreet?
           </p>
         </div>
 
@@ -690,7 +690,7 @@ export function StammerHaloCase() {
           {
             icon: 'book',
             title: 'Universal Accessibility Principles',
-            description: 'Designing for stammering taught me principles applicable to broader accessibility challenges—reducing cognitive load, providing multiple feedback channels, and enabling deep personalization.'
+            description: 'Working on Stammer Halo taught me to give people control over how they receive feedback and keep the device simple enough to use during a conversation.'
           }
         ]}
       />

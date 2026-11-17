@@ -313,9 +313,7 @@ function CreativeKeyFeature() {
           </CardLink>
         </h3>
         <p className="mt-5 max-w-sm text-[0.9375rem] leading-relaxed text-white/70">
-          A physical–digital ecosystem that turns awareness of creative
-          technology into confident participation, built for the UCD Creative
-          Futures Academy.
+          A kiosk, printed keys and a mobile guide help students explore creative technology at UCD Creative Futures Academy.
         </p>
         <ul aria-label="Creative Key routes" className="mt-7 flex flex-wrap gap-2">
           {KEYS.map(({ label, tone }) => (

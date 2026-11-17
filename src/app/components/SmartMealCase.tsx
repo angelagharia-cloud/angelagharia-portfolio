@@ -674,7 +674,7 @@ export function SmartMealCase() {
             {
               icon: 'heart',
               title: 'User-Centered Feature Prioritization',
-              description: 'Research revealed users prioritize features that help them use existing food over acquiring new food. This shifted focus from social sharing to inventory management and recipe generation—a critical pivot that better aligned with actual user needs.'
+              description: 'People wanted help cooking with food they already had. We shifted our focus from sharing food to tracking ingredients and suggesting recipes.'
             },
             {
               icon: 'lightbulb',
@@ -689,7 +689,7 @@ export function SmartMealCase() {
             {
               icon: 'book',
               title: 'Privacy Concerns Override Social Features',
-              description: 'Early prototypes with food-sharing and location features were rejected due to privacy concerns. This validated that personal utility must come first—social features can enhance but shouldn\'t compromise core functionality or user comfort.'
+              description: 'People raised privacy concerns when they tried the early food-sharing and location features. That helped us decide which parts of the app should work without sharing personal information.'
             }
           ]}
         />
