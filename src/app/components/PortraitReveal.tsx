@@ -7,7 +7,9 @@ import "./portrait-reveal.css"
 
 const facts = [
   { text: "I’ve danced on stage with A$AP Rocky and Leon Thomas." },
+  { text: "I pay attention to the first screen of an app. Can I tell what to do next without hunting through menus?" },
   { text: "I played varsity men’s basketball." },
+  { text: "I’ve learned to let go of a design I like when someone using it shows me a better way." },
   { text: "I have a stammer. That’s what inspired me to design Stammer Halo.", project: true },
 ]
 const portrait = media("portrait")
