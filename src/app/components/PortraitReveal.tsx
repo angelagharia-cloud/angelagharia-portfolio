@@ -68,12 +68,11 @@ export function PortraitReveal() {
 
   return (
     <>
-      <div ref={stage} id="portrait-stage" className="portrait-stage relative aspect-[5/6] lg:aspect-auto lg:h-[clamp(22rem,calc(100svh_-_11rem),40rem)]" data-side={side}>
-        <div aria-hidden="true" className="absolute inset-x-[7%] top-[3%] bottom-0 rounded-t-full bg-gradient-to-b from-[#e9eefc] via-[#f1ecfb] to-[#fbf0f6] ring-1 ring-inset ring-neutral-900/[0.04]" />
+      <div ref={stage} id="portrait-stage" className="portrait-stage relative aspect-[5/6] sm:aspect-[4/5] lg:aspect-auto lg:h-[clamp(36rem,calc(100svh_-_7rem),48rem)]" data-side={side}>
         {note(previous, -side, true)}
         {note(index, side)}
         <div className="portrait-figure">
-          <Img media={portrait} priority alt="Angel Agharia" sizes="(min-width: 1024px) 18rem, 11rem" className="h-full w-auto max-w-none drop-shadow-[0_24px_30px_rgba(15,23,42,0.18)]" />
+          <Img media={portrait} priority alt="Angel Agharia" sizes="(min-width: 1024px) 32rem, (min-width: 640px) 25rem, 88vw" className="h-full w-auto max-w-none drop-shadow-[0_24px_30px_rgba(15,23,42,0.18)]" />
         </div>
       </div>
       <div className="flex min-h-14 items-center justify-center gap-1">
