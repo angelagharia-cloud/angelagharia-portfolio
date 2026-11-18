@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { motion } from "motion/react"
 import { ArrowDown, ArrowRight } from "lucide-react"
 import { Link } from "../lib/router"
@@ -13,6 +13,7 @@ import { ProjectCover } from "./covers"
 
 import { PortraitReveal } from "./PortraitReveal"
 import { SeasonalHeroAccents } from "./SeasonalHeroAccents"
+import { HeroSpool, ThreadProcess } from "./ThreadJourney"
 
 const CREDENTIALS = [
   ["BSc Product Design", "Maynooth University"],
@@ -65,9 +66,29 @@ const SKILLS = [
 ]
 
 export function HomePage() {
+  const [threadStarted, setThreadStarted] = useState(false)
+  const followTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => {
+    if (followTimer.current) clearTimeout(followTimer.current)
+  }, [])
+
+  const followThread = () => {
+    if (followTimer.current) clearTimeout(followTimer.current)
+    if (!threadStarted) setThreadStarted(true)
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    followTimer.current = setTimeout(() => {
+      document.getElementById("design-process")?.scrollIntoView({
+        behavior: reduced ? "instant" : "smooth",
+        block: "start",
+      })
+    }, threadStarted || reduced ? 0 : 1130)
+  }
+
   return (
     <>
-      <Hero />
+      <Hero threadStarted={threadStarted} onFollowThread={followThread} />
+      <ThreadProcess active={threadStarted} />
       <Highlights />
       <SelectedWork />
       <About />
@@ -107,25 +128,28 @@ function MaskLine({
   )
 }
 
-function Hero() {
+function Hero({ threadStarted, onFollowThread }: { threadStarted: boolean; onFollowThread: () => void }) {
   return (
-    <section className="relative isolate overflow-hidden pt-16">
+    <section className="relative isolate overflow-hidden pt-10 lg:pt-12">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(56rem_36rem_at_12%_42%,rgba(59,130,246,0.06),transparent_62%),radial-gradient(46rem_34rem_at_88%_18%,rgba(168,85,247,0.06),transparent_60%)]"
       />
       <SeasonalHeroAccents />
-      <div className="relative z-10 shell grid items-end gap-x-10 gap-y-14 pt-14 sm:pt-20 lg:min-h-[calc(100svh_-_4rem)] lg:grid-cols-12 lg:pt-12">
-        <div className="lg:col-span-7 lg:self-center lg:pb-12">
+      <div className="relative z-10 shell grid items-end gap-x-6 gap-y-7 pt-12 sm:pt-16 lg:min-h-[calc(100svh_-_4rem)] lg:grid-cols-12 lg:pt-12">
+        <div className="relative z-20 lg:col-span-6 lg:self-center lg:pb-12">
           <motion.p {...intro(0)} className="t-eyebrow text-neutral-500">
             UX/UI &amp; Product Designer
           </motion.p>
 
           <h1 className="t-display mt-6 text-neutral-950">
             <MaskLine delay={0.08}>Angel</MaskLine>
-            <MaskLine delay={0.18} className="italic text-[#85858d]">
-              Agharia
-            </MaskLine>
+            <span className="hero-name-with-thread">
+              <MaskLine delay={0.18} className="italic text-[#85858d]">
+                Agharia
+              </MaskLine>
+              <HeroSpool active={threadStarted} />
+            </span>
           </h1>
 
           <motion.p
@@ -166,9 +190,10 @@ function Hero() {
                 strokeWidth={1.75}
               />
             </Link>
-            <Link to="home" section="contact" className={btn.secondary}>
-              Get in touch
-            </Link>
+            <button type="button" onClick={onFollowThread} className={btn.secondary}>
+              Follow the thread
+              <ArrowDown className="h-4 w-4" aria-hidden="true" strokeWidth={1.75} />
+            </button>
           </motion.div>
         </div>
 
@@ -176,7 +201,7 @@ function Hero() {
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.1, ease: EASE_OUT, delay: 0.12 }}
-          className="relative mx-auto w-full max-w-[19rem] sm:max-w-[23rem] lg:col-span-5 lg:max-w-none"
+          className="relative mx-auto w-full max-w-[22rem] sm:max-w-[27rem] lg:col-span-6 lg:max-w-none"
         >
           <PortraitReveal />
         </motion.div>
