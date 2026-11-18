@@ -48,7 +48,7 @@ export function HeroSpool({ active }: { active: boolean }) {
     <div className="hero-spool" aria-hidden="true">
       <svg className="hero-thread-tail" viewBox="0 0 210 270" preserveAspectRatio="none">
         <motion.path
-          d="M40 20 C20 55 110 62 70 112 S22 166 95 175 S162 197 160 258"
+          d="M27 4 C12 48 112 61 70 110 S18 162 83 180 S135 209 117 241"
           fill="none" stroke="#a99072" strokeWidth="2" strokeLinecap="round"
           initial={{ pathLength: 0 }}
           animate={{ pathLength: active ? 1 : 0 }}
