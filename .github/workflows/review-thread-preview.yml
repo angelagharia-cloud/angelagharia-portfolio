@@ -5,6 +5,10 @@ on:
       - feature/thread-of-reason-cinematic-polish
   workflow_dispatch:
 
+concurrency:
+  group: cinematic-review-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -50,7 +54,7 @@ jobs:
 
       - name: Start development preview
         run: |
-          nohup pnpm preview -- --host 127.0.0.1 --port 4173 > /tmp/thread-preview.log 2>&1 &
+          nohup pnpm exec vite preview --config vite.figma.config.ts --host 127.0.0.1 --port 4173 > /tmp/thread-preview.log 2>&1 &
           for i in $(seq 1 40); do
             if curl --silent --fail http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
             sleep 1
