@@ -41,14 +41,21 @@ async function review(label, viewport, reducedMotion="no-preference") {
 
   await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),releaseScroll+2);
   await page.waitForTimeout(150);
-  const first=await page.locator("#catch-line-creative-key path").evaluate(node=>
-    ({stroke:node.getAttribute("style"),dash:getComputedStyle(node).strokeDashoffset}));
-  await page.screenshot({path:output+"/"+label+"-drop-start.png"});
+  // Motion's SVG pathLength can render without an inline stroke-dash style.
+  // Verify the actual on-screen yarn pays out by comparing the rendered pixels
+  // around the spool at one fixed scroll position.
+  const origin=await page.locator(".process-exit").boundingBox();
+  const cropX=Math.max(0,Math.min(viewport.width-100,origin.x-25));
+  const cropY=Math.max(0,Math.min(viewport.height-145,origin.y-20));
+  const clip={x:cropX,y:cropY,width:Math.min(100,viewport.width-cropX),
+    height:Math.min(145,viewport.height-cropY)};
+  const first=await page.screenshot({path:output+"/"+label+"-drop-start.png"});
+  const firstCotton=await page.screenshot({clip});
   await page.waitForTimeout(1000);
-  const second=await page.locator("#catch-line-creative-key path").evaluate(node=>
-    ({stroke:node.getAttribute("style"),dash:getComputedStyle(node).strokeDashoffset}));
-  await page.screenshot({path:output+"/"+label+"-drop-end.png"});
-  assert.notDeepEqual(first,second,label+": cotton must keep falling after scroll stops");
+  const second=await page.screenshot({path:output+"/"+label+"-drop-end.png"});
+  const secondCotton=await page.screenshot({clip});
+  assert(!firstCotton.equals(secondCotton),
+    label+": the cotton beside Clarity must visibly grow while scroll is stationary");
 
   await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),releaseScroll+170);
   await page.waitForTimeout(160);
