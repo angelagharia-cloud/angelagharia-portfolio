@@ -192,7 +192,15 @@ export function ProjectThread({ active }: { active: boolean }) {
       setHandoff(nextReleased && Boolean(geometry))
       if (released !== nextReleased) {
         released = nextReleased
-        animate(release, released ? 1 : 0, {duration: released ? .95 : .28, ease: "easeInOut"})
+        if (released) {
+          animate(release, 1, { duration: .95, ease: "easeInOut" })
+        } else {
+          // Scrolling back above Clarity must rewind the paid-out fibre
+          // completely; do not leave the previous separate leading mask
+          // hanging in the whitespace next to the spool.
+          release.stop()
+          release.set(0)
+        }
       }
       if (!released) {
         target = from
