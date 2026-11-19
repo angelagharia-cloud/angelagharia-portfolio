@@ -1,0 +1,71 @@
+name: Review cinematic thread preview
+on:
+  push:
+    branches:
+      - feature/thread-of-reason-cinematic-polish
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    name: Build, exercise, and capture the cinematic journey
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout project with real Higgsfield assets
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.3
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install locked project dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify source assets
+        run: |
+          git lfs pull
+          node scripts/check-portfolio-assets.mjs
+          node -e 'const fs=require("fs"); for (const name of ["cotton-studio.webp","cotton-studio-small.webp"]) { const p="src/assets/"+name; const buf=fs.readFileSync(p); if(buf.toString("ascii",0,4)!=="RIFF" || buf.toString("ascii",8,12)!=="WEBP") throw Error(p+" is not a decoded WebP"); }'
+
+      - name: Build production-equivalent Vite bundle
+        run: pnpm run build
+
+      - name: Install temporary browser test runner
+        run: |
+          pnpm add -D --lockfile=false playwright@1.58.2
+          pnpm exec playwright install --with-deps chromium
+
+      - name: Start development preview
+        run: |
+          nohup pnpm preview -- --host 127.0.0.1 --port 4173 > /tmp/thread-preview.log 2>&1 &
+          for i in $(seq 1 40); do
+            if curl --silent --fail http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/thread-preview.log
+          exit 1
+
+      - name: Visually exercise desktop, mobile and reduced-motion experiences
+        run: node scripts/review-thread-preview.mjs
+
+      - name: Preserve all review images, videos and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: thread-cinematic-review
+          path: thread-review/
+          if-no-files-found: warn
+          retention-days: 7
