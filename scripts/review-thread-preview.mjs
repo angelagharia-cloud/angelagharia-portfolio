@@ -73,6 +73,33 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
     await page.waitForTimeout(3500);
     await page.screenshot({ path: `${output}/${name}-step-one-arrival.png`, fullPage: true });
     await page.screenshot({ path: `${output}/${name}-arrival-viewport.png` });
+
+    // The actual cotton geometry must CHANGE while the first chapter
+    // loosens. Merely revealing an immutable squiggle is not sufficient.
+    const snapshot = () => page.evaluate(() => {
+      const shape = document.querySelector("#process-cotton path")?.getAttribute("d") ?? "";
+      const spool = document.querySelector(".process-spool");
+      const x = parseFloat(spool?.style.left || "NaN");
+      const y = parseFloat(spool?.style.top || "NaN");
+      return { shape, x, y };
+    });
+    const knotBefore = await snapshot();
+    await page.evaluate(() => window.scrollBy({ top: 28, behavior: "instant" }));
+    await page.waitForTimeout(150);
+    const knotFirst = await snapshot();
+    await page.screenshot({ path: `${output}/${name}-unwinding-start.png`, animations: "disabled" });
+    await page.evaluate(() => window.scrollBy({ top: 44, behavior: "instant" }));
+    await page.waitForTimeout(150);
+    const knotSecond = await snapshot();
+    await page.screenshot({ path: `${output}/${name}-unwinding-middle.png`, animations: "disabled" });
+    assert.notEqual(knotBefore.shape, knotFirst.shape,
+      `${name}: cotton knot must deform on scroll, not just reveal`);
+    assert.notEqual(knotFirst.shape, knotSecond.shape,
+      `${name}: knots must continue to loosen through Step 1`);
+    for (const point of [knotFirst, knotSecond]) {
+      assert(Number.isFinite(point.x) && Number.isFinite(point.y),
+        `${name}: spool lost its physical position while unwinding`);
+    }
     await page.locator("#work").scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${output}/${name}-projects.png`, fullPage: true });
@@ -89,7 +116,7 @@ try {
   await inspect("mobile", { width: 390, height: 844 });
   await inspect("reduced-motion", { width: 1024, height: 768 }, "reduce");
   await writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
-  console.log("PASS: hero, process entrance, three project links, mobile layout, and reduced-motion flow");
+  console.log("PASS: hero, true scroll-driven knot morph, process entrance, project links, mobile layout, and reduced-motion flow");
 } finally {
   await browser.close();
 }
