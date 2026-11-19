@@ -178,7 +178,11 @@ export function ProjectThread({ active }: { active: boolean }) {
       const origin = layer.getBoundingClientRect().top
       const box = canvas.getBoundingClientRect()
       const trackBottom = canvas.parentElement!.getBoundingClientRect().bottom
-      const from = trackBottom - box.height + (box.height * 198) / 380 - origin
+      const exit = canvas.querySelector<HTMLElement>(".process-exit")?.getBoundingClientRect()
+      // When the process canvas is sticky, project its endpoint to the
+      // *released* position at the end of the scroll track, not today's frame.
+      const from = (exit?.top ?? (box.top + box.height * 198 / 380)) +
+        (trackBottom - box.bottom) - origin
       const distancePastClarity = innerHeight * 0.72 - trackBottom
       if (distancePastClarity <= 0) {
         cursor.set(from)
@@ -200,8 +204,14 @@ export function ProjectThread({ active }: { active: boolean }) {
       const origin = layer.getBoundingClientRect(),
         box = canvas.getBoundingClientRect()
       const rail = Math.min(origin.width - 6, box.right - origin.left + 12)
-      let px = box.left - origin.left + box.width * 0.975,
-        py = canvas.parentElement!.getBoundingClientRect().bottom - box.height - origin.top + (box.height * 198) / 380
+      const exit = canvas.querySelector<HTMLElement>(".process-exit")?.getBoundingClientRect()
+      const trackBottom = canvas.parentElement!.getBoundingClientRect().bottom
+      // The process line ends at x=1170,y=198 on its SVG. Read its exact
+      // responsive DOM anchor instead of conjuring a new string nearby.
+      // The same endpoint is used for the connector's first SVG command.
+      let px = (exit?.left ?? box.left + box.width * .975) - origin.left,
+        py = (exit?.top ?? box.top + box.height * 198 / 380) +
+          (trackBottom - box.bottom) - origin.top
       const result: Catch[] = []
       cards.forEach((card, i) => {
         if (!card) return
@@ -220,7 +230,19 @@ export function ProjectThread({ active }: { active: boolean }) {
         const reach = inletY - py
         const sharedRow = angle === 30
         const gutterY = y - 22
-        const path = sharedRow
+        const path = i === 0
+          // One continuous falling strand, beginning exactly where Clarity
+          // finishes. It first carries the horizontal tangent of the final
+          // process segment, then gravity takes the string down into the
+          // first card. No separate string enters from the page gutter.
+          ? `M ${px} ${py}
+             C ${px + Math.min(46, Math.max(8, (rail - px) * .55))} ${py},
+               ${rail} ${py + Math.min(28, reach * .09)},
+               ${rail} ${py + Math.min(90, reach * .2)}
+             C ${rail} ${py + reach * .53},
+               ${rail} ${inletY - Math.min(56, reach * .12)},
+               ${inletX} ${inletY}`
+          : sharedRow
           ? `M ${px} ${py} Q ${rail} ${py+10} ${rail} ${py+30} L ${rail} ${gutterY-15}
              Q ${rail} ${gutterY} ${rail-24} ${gutterY} C ${rail-80} ${gutterY} ${inletX+32} ${gutterY-4} ${inletX} ${inletY}`
           : `M ${px} ${py}
@@ -256,7 +278,7 @@ export function ProjectThread({ active }: { active: boolean }) {
     }
   }, [active, nearWork, reduced, cursor])
   return (
-    <svg ref={svg} aria-hidden="true" className="project-thread">
+    <svg ref={svg} aria-hidden="true" className="project-thread" data-continuation="clarity-to-selected-work">
       {active &&
         shots.map((shot) => (
           <CornerCatch key={shot.id} shot={shot} cursor={cursor} />
