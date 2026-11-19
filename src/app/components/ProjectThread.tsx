@@ -114,8 +114,12 @@ function CornerCatch({
         />
         <ellipse cx={x - 2} cy={y + 2} rx="3" ry="1.75" fill="black" />
       </mask>
-      <motion.path d={wrapPath} fill="none" stroke="#78664f" strokeWidth="1.8" strokeLinecap="round" style={{ pathLength: wrap, opacity: wrap }} />
-      <motion.path d={wrapPath} fill="none" stroke="#d8c8a9" strokeWidth=".8" strokeLinecap="round" style={{ pathLength: wrap, opacity: wrap }} />
+      <mask id={`corner-wrap-${id}`} maskUnits="userSpaceOnUse" x={x-50} y={y-50} width="110" height="110">
+        <motion.path d={wrapPath} fill="none" stroke="white" strokeWidth="8" strokeLinecap="round" style={{ pathLength: wrap }} />
+      </mask>
+      <motion.g mask={`url(#corner-wrap-${id})`} style={{ opacity:wrap }}>
+        <CottonStrip curve={wrapPath} width={3.2} step={3} />
+      </motion.g>
       <motion.line x1={shot.inletX} y1={shot.inletY} x2={tipX} y2={tipY} stroke="#ac987c" strokeWidth="1.5" strokeLinecap="round" style={{ opacity }} />
       <motion.g style={{ x: pullX, y: pullY }} mask={`url(#behind-edge-${id})`}>
         <g transform={`translate(${x} ${y}) rotate(${shot.angle})`}>
@@ -144,10 +148,21 @@ function CornerCatch({
 export function ProjectThread({ active }: { active: boolean }) {
   const svg = useRef<SVGSVGElement>(null)
   const [shots, setShots] = useState<Catch[]>([])
+  const [nearWork, setNearWork] = useState(false)
   const cursor = useMotionValue(0)
   const reduced = useReducedMotion()
   useEffect(() => {
-    if (!active) return
+    if (!active || nearWork) return
+    const work = document.getElementById("work")
+    if (!work) return
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setNearWork(true)
+    }, {rootMargin:"100% 0px"})
+    observer.observe(work)
+    return () => observer.disconnect()
+  }, [active, nearWork])
+  useEffect(() => {
+    if (!active || !nearWork) return
     const canvas = document.querySelector<HTMLElement>(".process-canvas")!
     const cards = projects.map((id) =>
       document
@@ -239,7 +254,7 @@ export function ProjectThread({ active }: { active: boolean }) {
       ro.disconnect()
       window.removeEventListener("scroll", update)
     }
-  }, [active, reduced, cursor])
+  }, [active, nearWork, reduced, cursor])
   return (
     <svg ref={svg} aria-hidden="true" className="project-thread">
       {active &&

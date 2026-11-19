@@ -3,8 +3,9 @@ import studioLarge from "../../assets/cotton-studio.webp"
 import { measureTypeRail, type TypeRail } from "./typeRail"
 import { CottonFilm } from "./CottonFilm"
 import { CottonStrip } from "./CottonStrip"
+import { restingCotton } from "./cottonSpan"
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react"
-import { animate, type MotionValue, motion, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from "motion/react"
+import { animate, type MotionValue, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react"
 import { Link } from "../lib/router"
 import "./thread-journey.css"
 
@@ -64,6 +65,7 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
   const flight = useMotionValue(0)
   const laid = useMotionValue(0)
   const looseEnd = useMotionValue("M0 0")
+  const restEnd = useMotionValue("M0 0")
   const distance = useTransform(flight, value => `${value * 100}%`)
   const turns = useMotionValue(0)
   const reduced = useReducedMotion()
@@ -94,6 +96,7 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
       if (railGeometry) {
         railRef.current = railGeometry
         label.style.setProperty("--rail-top", railGeometry.heights[0] + "px")
+        restEnd.set(restingCotton(railGeometry.tailX, railGeometry.tailY, bodyWidth))
       }
       const a = origin!.getBoundingClientRect()
       const p = portrait!.getBoundingClientRect()
@@ -239,6 +242,9 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
 
   return (
     <span ref={anchor} className="spool-origin" aria-hidden="true">
+      {!filmFailed && !(active && reduced) && <svg className="flight-thread resting-cotton">
+        <CottonStrip curve={restEnd} width={innerWidth < 640 ? 3.1 : 4} step={3} />
+      </svg>}
       {active && !reduced && !filmFailed && <CottonFilm railRef={railRef} onFallback={fallback} onArrival={onArrival} />}
       {filmFailed && route && active && !reduced && (
         <svg className="flight-thread" fill="none" strokeLinecap="round">
@@ -273,7 +279,12 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
 }
 
 export { ProjectThread } from "./ProjectThread"
-const processPath = "M260 195 C210 180 105 260 62 224 C12 184 39 82 89 94 C145 107 57 282 124 278 C199 274 219 104 164 112 C115 120 155 257 214 241 C268 227 305 142 267 141 C234 140 259 225 306 220 C348 216 349 165 376 172 C397 178 393 209 420 205 C448 201 449 184 473 189 C497 194 519 204 554 201 S639 193 702 197 S812 200 918 198 S1050 198 1170 198"
+const chapters = [
+  "C150 271 42 277 54 177 C66 84 165 87 127 192 C101 262 103 287 153 277 C225 263 276 126 220 124 C165 122 204 253 321 222",
+  "C374 208 366 151 401 157 S427 232 469 216 S503 168 533 181 S561 219 606 202",
+  "C686 173 714 155 769 174 S842 200 918 198",
+  "C990 196 1060 198 1170 198",
+]
 // Same tangent and settled slack shape as the last flight frame, in
 // hundredths of the spool width. It stays on the page as more cotton pays out.
 const settledTail = Array.from({ length: 25 }, (_, i) => {
@@ -300,33 +311,35 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
     return () => query.removeEventListener("change", update)
   }, [])
   const startX = wide ? 672 : 260
-  const curve = wide ? processPath.replace("M260 195", "M672 195 C539 181 395 216 260 195") : processPath
+  const entryCurve = wide ? "M672 195 C574 161 391 148 260 212" : "M260 195"
+  const curve = entryCurve + " " + chapters.join(" ")
   const positionX = useMotionValue("21.667%")
   const positionY = useMotionValue("51.316%")
   const progress = useMotionValue(0)
   const groundShadow = useTransform(progress, [0, .026], [1, 0])
+  const tailScale = useTransform(progress, [0, .032], [1, 0])
   const rollFrame = useMotionValue("100% 100%")
-  const { scrollYProgress } = useScroll({ target: track, offset: ["start 28%", "end 72%"] })
 
-  const easedScroll = useSpring(scrollYProgress, { stiffness: 320, damping: 36, mass: .48, restDelta: .0001 })
 
   useEffect(() => {
     const node = path.current!
     const total = node.getTotalLength()
     // The tangle is much longer than the straight portion. Map the same
     // scroll distance to each chapter so the last two stages remain legible.
-    const stops = [0, ...[324, 612, 948].map(x => {
-      let lo = 0, hi = total
-      for (let i = 0; i < 20; i++) {
-        const mid = (lo + hi) / 2
-        if (node.getPointAtLength(mid).x < x) lo = mid
-        else hi = mid
-      }
-      return hi
-    }), total]
+    const measure = document.createElementNS("http://www.w3.org/2000/svg", "path")
+    let prefix = entryCurve
+    const stops = [0, ...chapters.map(segment => {
+      prefix += " " + segment
+      measure.setAttribute("d", prefix)
+      return measure.getTotalLength()
+    })]
     // The camera may have moved the sticky stage during the fall. Start
     // its scroll travel at the exact frame where the landing settled.
-    const arrival = active && fromHero && !reduced ? scrollYProgress.get() : 0
+    const travelAtScroll = () => {
+      const box = track.current!.getBoundingClientRect()
+      return Math.max(0, Math.min(1, (innerHeight * .28 - box.top) / Math.max(1, box.height - innerHeight * .44)))
+    }
+    const arrival = active && fromHero && !reduced ? travelAtScroll() : 0
     function draw(value: number) {
       const travel = (value - arrival) / Math.max(.001, 1 - arrival)
       const phase = active ? (reduced ? 4 : Math.max(0, Math.min(4, travel * 4))) : 0
@@ -343,10 +356,12 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
       const frame = Math.round(47 * (.5 + .5 * Math.cos(Math.PI * cycle)))
       rollFrame.set(String((frame % 8) * 100 / 7) + "% " + String(Math.floor(frame / 8) * 20) + "%")
     }
-    const source = reduced ? scrollYProgress : easedScroll
-    draw(source.get())
-    return source.on("change", draw)
-  }, [active, fromHero, wide, reduced, scrollYProgress, easedScroll, positionX, positionY, progress, rollFrame])
+    const update = () => draw(travelAtScroll())
+    update()
+    window.addEventListener("scroll", update, { passive:true })
+    window.addEventListener("resize", update)
+    return () => { window.removeEventListener("scroll", update); window.removeEventListener("resize", update) }
+  }, [active, fromHero, entryCurve, reduced, positionX, positionY, progress, rollFrame])
 
   return (
     <section id="design-process" aria-labelledby="process-heading" className="thread-process">
@@ -365,18 +380,20 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
           </div>
           <svg viewBox="0 0 1200 380" preserveAspectRatio="none" className="process-path">
             <mask id="process-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="380">
-              <motion.path ref={path} d={curve} fill="none" stroke="white" strokeWidth="12" style={{ pathLength: progress }} />
+              <motion.path ref={path} d={curve} fill="none" stroke="white" strokeWidth="18" style={{ pathLength: progress }} />
             </mask>
-            <g mask="url(#process-cotton)"><CottonStrip curve={curve} width={4.4} step={8} /></g></svg>
+            <g mask="url(#process-cotton)"><CottonStrip curve={curve} width={3.45} step={8} screenWidth /></g></svg>
           <div aria-hidden="true" className="landing-entry" data-settled={active} style={{ left: String(startX / 12) + "%" }}>
             <motion.span className="ground-shadow" style={{ opacity: groundShadow }} />
-            {active && <svg className="settled-tail" viewBox="-50 -42.1875 100 84.375">
-              <path d={settledTail} fill="none" stroke="#a89579" strokeWidth="1.35" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-            </svg>}
           </div>
           <motion.div hidden={!active} className="process-spool resting-bobbin" aria-hidden="true"
             style={{ ...({ "--spool-wide": `url("${studioLarge}")`, "--spool-small": `url("${studioRoll}")` } as CSSProperties),
               left: positionX, top: positionY, backgroundPosition: rollFrame }}>
+            {active && <svg className="settled-tail" viewBox="-50 -42.1875 100 84.375">
+              <motion.g style={{scale:tailScale, transformOrigin:"-24px 20px"}}>
+                <CottonStrip curve={settledTail} width={4.2} step={4} />
+              </motion.g>
+            </svg>}
           </motion.div>
           {words.map((word, i) => <div key={word.title} className="process-word" data-current={active && stage === i} style={{ left: word.x }}>
             <span className="process-number">0{i + 1}</span>

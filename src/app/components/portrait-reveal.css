@@ -36,7 +36,7 @@
 .portrait-copy p { font:400 clamp(1.1rem,4.35cqw,1.8rem)/1.18 "DM Serif Display",Georgia,serif; letter-spacing:-.025em; text-wrap:pretty; }
 .portrait-copy a { color:#2348b9; pointer-events:auto; }
 .portrait-controls { display:flex; align-items:center; justify-content:center; gap:.1rem; min-height:3.5rem; }
-.portrait-controls button { white-space:nowrap; }
+.portrait-controls button { min-width:44px; white-space:nowrap; }
 .portrait-controls button:disabled { opacity:.55; }
 @media (min-width:1024px) {
   .hero-copy > h1 { transform-origin:left center; transition:transform 440ms cubic-bezier(.35,0,.2,1); }

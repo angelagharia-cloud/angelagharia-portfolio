@@ -242,6 +242,7 @@
 }
 .cotton-film { position: fixed; inset: 0; width: 100vw; height: 100dvh; pointer-events: none; z-index: 15; }
 .film-playing .flight-spool { opacity: 0 !important; }
+.film-playing .resting-cotton, .flight-landed .resting-cotton { visibility:hidden; }
 .thread-story:has(.cotton-film) .portrait-photo { animation: none !important; }
 .process-canvas { --take-width: clamp(254px, 25vw, 430px); }
 .landing-entry { position:absolute; }
@@ -395,8 +396,32 @@
 }
 .type-baseline { display:inline-block; width:0; height:0; vertical-align:baseline; }
 .hero-name-with-thread .spool-origin, .hero-name-with-thread .spool-trigger { top:var(--rail-top,6%); }
-.hero-composition[style*="--camera-depth"] :is(.hero-copy > p,.hero-copy > dl,.hero-actions,.portrait-controls) {
+.hero-composition[style*="--camera-depth"] :is(.hero-copy > p,.hero-copy > dl,.portrait-controls) {
   opacity:calc(1 - .78 * var(--camera-depth)) !important;
+}
+.hero-actions .work-shortcut {
+  transform-origin:0 0;
+  min-height:48px; padding:.75rem 1.25rem; border-radius:999px;
+  background:#2855d8; color:white; font-weight:600;
+  gap:.65rem; text-decoration:none;
+  transition:background-color 160ms ease, box-shadow 160ms ease;
+}
+.hero-actions .work-shortcut:hover { background:#2046b6; }
+.hero-actions .work-shortcut:focus-visible { outline:3px solid #193b9f; outline-offset:4px; }
+.hero-actions .work-shortcut:active { background:#183994; }
+.process-spool .settled-tail { inset:0; width:100%; height:100%; transform:none; pointer-events:none; }
+@media (max-width:640px) {
+  .process-track { --stage-height:clamp(225px,31svh,270px); }
+  .process-word[data-current="true"] small { display:block; }
+  .process-word { top:76%; bottom:auto; }
+  .process-question { top:4%; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .process-track .process-canvas { height:auto; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.25rem; padding-block:1rem; }
+  .process-canvas :is(.process-path,.landing-entry,.process-question,.resting-bobbin) { visibility:hidden; }
+  .process-canvas .process-word { position:static; width:auto; max-width:none; border-color:transparent; }
+  .process-canvas .process-word small { display:block; }
+  .process-canvas .process-word strong { color:#23242a; }
 }
 @media(max-width:360px) {
   .hero-composition:has(.portrait-stage[data-open="true"]) .hero-actions { grid-area:4 / 1 / 5 / 3; }

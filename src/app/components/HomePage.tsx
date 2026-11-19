@@ -73,6 +73,15 @@ export function HomePage() {
   const onArrival = useCallback(() => setArrived(true), [])
   const [take, setTake] = useState(0)
   useEffect(() => {
+    const leave = () => {
+      if (!threadStarted || arrived) return
+      setThreadStarted(false)
+      setArrived(true)
+    }
+    window.addEventListener("portfolio:navigate", leave)
+    return () => window.removeEventListener("portfolio:navigate", leave)
+  }, [threadStarted, arrived])
+  useEffect(() => {
     if (threadStarted || arrived) return
     const section = document.querySelector(".process-canvas")
     if (!section) return
@@ -178,6 +187,15 @@ function Hero({ take, arrived, threadStarted, onFollowThread, onArrival }: { tak
             frame the problem and prototyping to get the details right.
           </motion.p>
 
+          <motion.div
+            {...intro(0.42)}
+            className="hero-actions mt-7 flex flex-wrap items-center gap-3"
+          >
+            <Link to="home" section="work" className="work-shortcut">
+              Selected work <ArrowDown aria-hidden="true" size={14} />
+            </Link>
+          </motion.div>
+
           <motion.dl
             {...intro(0.48)}
             className="mt-9 grid max-w-[40rem] border-t border-neutral-200 sm:grid-cols-3"
@@ -197,14 +215,6 @@ function Hero({ take, arrived, threadStarted, onFollowThread, onArrival }: { tak
             ))}
           </motion.dl>
 
-          <motion.div
-            {...intro(0.58)}
-            className="hero-actions mt-9 flex flex-wrap items-center gap-3"
-          >
-            <Link to="home" section="work" className="work-shortcut">
-              Selected work <ArrowDown aria-hidden="true" size={14} />
-            </Link>
-          </motion.div>
         </div>
 
         <motion.div

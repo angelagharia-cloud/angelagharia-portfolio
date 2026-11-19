@@ -1,5 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react"
-import { measureTypeRail, type TypeRail } from "./typeRail"
+import { crestAt, measureTypeRail, type TypeRail } from "./typeRail"
+import { cottonSpan, type CottonPoint } from "./cottonSpan"
 import spin from "../../assets/cotton-studio.webp"
 import smallSpin from "../../assets/cotton-studio-small.webp"
 import fibre from "../../imports/opt/cotton-fibre.webp"
@@ -8,23 +9,21 @@ import { createPortal, flushSync } from "react-dom"
 const clamp = (t: number) => Math.max(0, Math.min(1, t))
 const smooth = (t: number) => clamp(t) ** 2 * (3 - 2 * clamp(t))
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
-type Point = { x: number; y: number }
 const gravity = 860 // CSS pixels per second squared in the scene plane
 
 // Sample both the centreline and its local tangent. The fine cotton texture
 // follows the bend, while a continuous core stays legible at phone resolution.
-function strand(ctx: CanvasRenderingContext2D, texture: HTMLImageElement, points: Point[], weight: number) {
+function strand(ctx: CanvasRenderingContext2D, texture: CanvasPattern | null, points: CottonPoint[], width: number) {
   ctx.lineCap = "round"
   ctx.lineJoin = "round"
   ctx.beginPath()
   points.forEach(({ x, y }, i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))
-  ctx.strokeStyle = "#887460"
-  ctx.lineWidth = weight
+  ctx.strokeStyle = texture ? "rgba(79,59,40,.38)" : "#ad9982"
+  ctx.lineWidth = width * .78
   ctx.stroke()
-  ctx.strokeStyle = "#d7c8ad"
-  ctx.lineWidth = weight * .55
-  ctx.stroke()
-  if (!texture.naturalWidth) return
+  if (!texture) return
+  const scale = width / 64
+  ctx.fillStyle = texture
   let arc = 0
   for (let i = 1; i < points.length; i++) {
     const a = points[i - 1], b = points[i]
@@ -34,8 +33,10 @@ function strand(ctx: CanvasRenderingContext2D, texture: HTMLImageElement, points
     ctx.save()
     ctx.translate(a.x, a.y)
     ctx.rotate(Math.atan2(dy, dx))
-    ctx.globalAlpha = .8
-    ctx.drawImage(texture, Math.floor(arc * 5) % 192, 0, 64, 64, 0, -weight, length + .35, 2 * weight)
+    ctx.scale(scale, scale)
+    const phase = (arc / scale) % 256
+    ctx.translate(-phase, -32)
+    ctx.fillRect(phase, 0, (length + .32) / scale, 64)
     ctx.restore()
     arc += length
   }
@@ -49,6 +50,8 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
     if (!ctx) { onFallback(); return }
     const anchor = document.querySelector<HTMLElement>(".spool-origin")!
     const scene = anchor.closest<HTMLElement>(".hero-composition")!
+    const shortcut = scene.querySelector<HTMLElement>(".work-shortcut")!
+    let shortcutOrigin: CottonPoint | undefined
     const word = anchor.parentElement!
     const jacket = document.querySelector<HTMLElement>("#portrait-stage img")!
     const entry = document.querySelector<HTMLElement>(".landing-entry")!
@@ -56,8 +59,11 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
     const atlas = new Image(), grain = new Image()
     atlas.src = innerWidth <= 640 ? smallSpin : spin
     grain.src = fibre
-    let raf = 0, start = 0, previous = 0, disposed = false, landed = false, following = true, touched = false
+    let cotton: CanvasPattern | null = null
+    void grain.decode().then(() => { if (!disposed) cotton = ctx.createPattern(grain, "repeat-x") }).catch(() => {})
+    let raf = 0, elapsed = 0, previous = 0, disposed = false, following = true, touched = false
     let cameraScale = 1, cameraX = 0, cameraY = 0, disengaged = Infinity
+    let looseTip: { x: number; y: number; vx: number; vy: number } | undefined
     const stop = () => { following = false; disengaged = Math.min(disengaged, performance.now()) }
     const inputs = ["wheel", "touchstart", "keydown"] as const
     inputs.forEach(event => window.addEventListener(event, stop, { passive: true }))
@@ -65,9 +71,8 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
     let timing: { rollEnd: number; hit: number; ground: number; finish: number; takeoff: number; returnSpeed: number } | undefined
     function paint(now: number) {
       if (disposed || !ctx) return
-      if (!start) start = now
-      const elapsed = (now - start) / 1000
-      const dt = Math.min(.05, (now - previous) / 1000)
+      const dt = previous ? Math.min(.064, (now - previous) / 1000) : 0
+      elapsed += dt
       previous = now
       const w = innerWidth, h = innerHeight, dpr = Math.min(devicePixelRatio, 2, Math.sqrt(2_100_000 / (w * h)))
       if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
@@ -78,6 +83,10 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
       ctx.clearRect(0, 0, w, h)
       const sceneBox = scene.getBoundingClientRect()
       const baseX = sceneBox.left - cameraX, baseY = sceneBox.top - cameraY
+      if (!shortcutOrigin) {
+        const box = shortcut.getBoundingClientRect()
+        shortcutOrigin = {x:box.left-baseX,y:box.top-baseY}
+      }
       // Physics runs in the unprojected page. DOM scenery and the keyed
       // foreground are then photographed with the same camera transform.
       const worldBox = (el: Element) => {
@@ -166,7 +175,7 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
         y = e.top - hop
       }
       const followTarget = Math.max(initialScroll, scrollY + y - h * .57)
-      if (!landed && following && time > rollEnd)
+      if (following && time > rollEnd)
         window.scrollTo({ top: lerp(scrollY, followTarget, 1 - Math.exp(-12 * dt)), behavior: "instant" })
       entry.style.setProperty("--contact-shadow", String(smooth(1 - clamp(Math.abs(e.top - y) / size))))
       const offset = scrollBefore - scrollY
@@ -181,7 +190,12 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
         scene.style.setProperty("--camera-depth", String(push))
         scene.style.transformOrigin = "0 0"
         scene.style.transform = `translate3d(${cameraX}px,${cameraY}px,0) scale(${cameraScale})`
+        // Keep the primary navigation target on its page mark during the dolly.
+        const tx = ((1-cameraScale)*shortcutOrigin.x-cameraX)/cameraScale
+        const ty = ((1-cameraScale)*shortcutOrigin.y-cameraY)/cameraScale
+        shortcut.style.transform = `translate3d(${tx}px,${ty}px,0) scale(${1/cameraScale})`
       } else {
+        shortcut.style.removeProperty("transform")
         scene.style.removeProperty("--camera-depth")
         scene.style.removeProperty("transform")
         scene.style.removeProperty("transform-origin")
@@ -189,31 +203,56 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
       ctx.translate(baseX+cameraX, baseY+offset+cameraY)
       ctx.scale(cameraScale,cameraScale)
       ctx.translate(-baseX,-baseY-offset)
-      const lag = Math.exp(-7 * t) * Math.sin(16 * t)
-      const end = { x: x - diameter * .24, y: y + diameter * .20 }
-      const root = { x: o.left + size * .15, y: o.top + offset + size * .30 }
-      const points: Point[] = []
-      function span(from: Point, to: Point, slack: number) {
-        const length = Math.hypot(to.x - from.x, to.y - from.y)
-        const count = Math.max(2, Math.ceil(length / 6))
-        for (let i = points.length ? 1 : 0; i <= count; i++) {
-          const q = i / count
-          points.push({
-            x: lerp(from.x, to.x, q) + lag * 8 * Math.sin(Math.PI * q),
-            y: lerp(from.y, to.y, q) + 4 * q * (1 - q) * slack,
-          })
+      const impactTurn = Math.sin(13 * t) * Math.exp(-7 * t) * 14
+      const rollAngle = (4 * tilt + 7 * smooth(v) - 13 * Math.sin(Math.PI * t) + impactTurn - 7 * smooth(t) + 5 * Math.sin(afterImpact * 22) * Math.exp(-10 * afterImpact)) * Math.PI / 180
+      const tangent = (angle: number) => ({
+        x: -.24 * Math.cos(angle) - .20 * Math.sin(angle),
+        y: -.24 * Math.sin(angle) + .20 * Math.cos(angle),
+      })
+      const peel = tangent(rollAngle), graze = tangent(7 * Math.PI / 180)
+      const end = { x: x + diameter * peel.x, y: y + diameter * peel.y }
+      const feed = smooth(v)
+      const tailX = lerp(railShape?.tailX ?? -size * .60, run, feed)
+      const supportY = railShape ? crestAt(railShape.crest, tailX) : Infinity
+      const tailY = Number.isFinite(supportY) ? supportY : railShape?.tailY ?? size * .24
+      const slope = tilt * Math.PI / 45
+      const root = { x: o.left - pivot + (pivot + tailX) * Math.cos(slope) - tailY * Math.sin(slope),
+        y: o.top + offset + (pivot + tailX) * Math.sin(slope) + tailY * Math.cos(slope) }
+      const points: CottonPoint[] = []
+      const seam = { x: shoulderX + size * graze.x, y: shoulderY + offset + size * graze.y }
+      const firstEnd = time <= hit ? end : seam
+      const paidSlack = Math.min(28, Math.abs(firstEnd.x - root.x) * .15)
+      cottonSpan(points, root, firstEnd, lerp(size * .038, paidSlack, smooth(u)) * (1 - .54 * v),
+        Math.min(11, size * .12), time - hit)
+      if (railShape && time <= hit) {
+        const cs = Math.cos(slope), sn = Math.sin(slope)
+        for (const point of points) {
+          const dx = point.x - o.left + pivot, dy = point.y - o.top - offset
+          const localX = dx * cs + dy * sn - pivot
+          const ceiling = crestAt(railShape.crest, localX)
+          const penetration = -dx * sn + dy * cs - ceiling
+          if (penetration > 0) { point.x += penetration * sn; point.y -= penetration * cs }
         }
       }
-      const seam = { x: shoulderX - size * .24, y: shoulderY + offset + size * .20 }
-      const firstEnd = time <= hit ? end : seam
-      span(root, firstEnd, Math.min(32, Math.abs(firstEnd.x - root.x) * .09) * smooth(time / rollEnd))
       if (time > hit) {
         const pinned = points.length
-        span(seam, end, Math.min(24, Math.hypot(end.x - seam.x, end.y - seam.y) * .1))
+        cottonSpan(points, seam, end, Math.min(22, Math.hypot(end.x - seam.x, end.y - seam.y) * .14),
+          Math.min(19, size * .24), time - hit)
         // The released cotton trails along the route the bobbin actually
         // took. A straight chord here would cut through the mobile bio.
         if (w < 1024) for (let i = pinned; i < points.length; i++) {
-          points[i].x = lane(points[i].y - offset - diameter * .20) - diameter * .24
+          const q = (i - pinned + 1) / (points.length - pinned)
+          points[i].x = lane(points[i].y - offset - diameter * peel.y) + lerp(size * graze.x, diameter * peel.x, q)
+        }
+        // A soft contact spreads around the jacket seam. As the trailing
+        // fibre slips away, a broader radius releases that contact.
+        const radius = Math.min(pinned - 1, points.length - pinned, 2 + Math.round(5 * smooth((time-hit)/.34)))
+        if (radius > 0) {
+          const join = pinned-1, a = points[join-radius], b = points[join+radius], contact = points[join]
+          for (let k = 1; k < 2*radius; k++) {
+            const q = k / (2*radius), s = 1-q
+            points[join-radius+k] = { x:s*s*a.x + 2*s*q*contact.x + q*q*b.x, y:s*s*a.y + 2*s*q*contact.y + q*q*b.y }
+          }
         }
       }
       // Once the free end slips off the type, keep a finite paid-out tail.
@@ -226,6 +265,27 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
       if (tail.length > 1) {
         const fraction = trim - first
         tail[0] = { x: lerp(tail[0].x, tail[1].x, fraction), y: lerp(tail[0].y, tail[1].y, fraction) }
+      }
+      if (slip > 0 && tail.length > 1) {
+        // After the end leaves the type it carries momentum independently.
+        // Work in page coordinates so a camera scroll never kicks the fibre.
+        const tip = tail[0], targetY = tip.y + scrollY
+        looseTip ??= { x: tip.x, y: targetY, vx: 0, vy: 0 }
+        const rate = 15, decay = Math.exp(-rate * dt)
+        const dx = looseTip.x - tip.x, dy = looseTip.y - targetY
+        const bx = looseTip.vx + rate * dx, by = looseTip.vy + rate * dy
+        looseTip.x = tip.x + (dx + bx * dt) * decay
+        looseTip.y = targetY + (dy + by * dt) * decay
+        looseTip.vx = (looseTip.vx - rate * bx * dt) * decay
+        looseTip.vy = (looseTip.vy - rate * by * dt) * decay
+        const lagX = Math.max(-14, Math.min(14, looseTip.x - tip.x))
+        const lagY = Math.max(-18, Math.min(18, looseTip.y - targetY))
+        const curl = Math.min(5, Math.hypot(lagX, lagY) * .26)
+        tail.forEach((p, i) => {
+          const free = 1 - i / (tail.length - 1)
+          p.x += slip * free * (free * lagX + curl * Math.sin(2 * Math.PI * free))
+          p.y += slip * free * free * lagY
+        })
       }
       // A soft footprint narrows against the supporting letter, then fades
       // over the first few pixels of free flight.
@@ -251,16 +311,15 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
           point.x = lerp(point.x, end.x - q * diameter * .72, gather)
           point.y = lerp(point.y, end.y + diameter * (.17 * q + .06 * Math.sin(2 * Math.PI * q)), gather)
         })
-        strand(ctx, grain, tail, w < 640 ? 1.25 : 1.65)
+        strand(ctx, cotton, tail, lerp(w < 640 ? 3.1 : 4, landingWidth * .042, smooth(t)))
       }
-      if (time < finish) {
+      {
         const phase = 47 * clamp(u * u * .48 + v * .22 + t * .30)
         const frame = Math.floor(phase)
         const cellW = atlas.naturalWidth / 8, cellH = atlas.naturalHeight / 6
         ctx.save()
         ctx.translate(x, y)
-        const impactTurn = Math.sin(13 * t) * Math.exp(-7 * t) * 14
-        ctx.rotate((4 * tilt + 7 * smooth(v) - 13 * Math.sin(Math.PI * t) + impactTurn - 7 * smooth(t) + 5 * Math.sin(afterImpact * 22) * Math.exp(-10 * afterImpact)) * Math.PI / 180)
+        ctx.rotate(rollAngle)
         ctx.drawImage(atlas, (frame % 8) * cellW, Math.floor(frame / 8) * cellH, cellW, cellH, -diameter / 2, -diameter * cellH / cellW / 2, diameter, diameter * cellH / cellW)
         if (frame < 47) {
           ctx.globalAlpha = phase - frame
@@ -275,8 +334,7 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
         jacket.animate([{ translate: "0 0" }, { translate: "1.5px 1px", offset: .21 }, { translate: "0 0" }], { duration: 285 })
       }
       if (time < finish) raf = requestAnimationFrame(paint)
-      else if (!landed) {
-        landed = true
+      else {
         anchor.classList.add("flight-landed")
         canvas.width = canvas.height = 1
         canvas.hidden = true
@@ -302,6 +360,7 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
     }).catch(() => { if (!disposed) onFallback() })
     return () => {
       disposed = true
+      shortcut.style.removeProperty("transform")
       scene.style.removeProperty("--camera-depth")
       scene.style.removeProperty("transform")
       scene.style.removeProperty("transform-origin")
