@@ -329,9 +329,27 @@ export function ProjectThread({ active }: { active: boolean }) {
     const ro = new ResizeObserver(measure)
     ro.observe(document.body)
     cards.forEach((c) => c && ro.observe(c))
+    // The last process stage subtly sags under gravity for 1.15s. Re-sample
+    // the ACTUAL original fibre while that happens, including its transform;
+    // otherwise the handed-off copy slowly separates from the tangle by ~26px.
+    let lastSample = 0
+    const processFibre = canvas.querySelector(".process-path > g")
+    const followGravity = new MutationObserver(() => {
+      if (!released) return
+      const now = performance.now()
+      if (now - lastSample < 28) return
+      lastSample = now
+      measure()
+    })
+    if (processFibre) {
+      followGravity.observe(processFibre, {
+        attributes: true, attributeFilter: ["transform"],
+      })
+    }
     window.addEventListener("scroll", update, { passive: true })
     window.addEventListener("resize", measure)
     return () => {
+      followGravity.disconnect()
       setHandoff(false)
       unsubscribe()
       release.stop()
