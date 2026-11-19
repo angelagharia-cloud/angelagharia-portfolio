@@ -409,6 +409,15 @@
 .hero-actions .work-shortcut:hover { background:#2046b6; }
 .hero-actions .work-shortcut:focus-visible { outline:3px solid #193b9f; outline-offset:4px; }
 .hero-actions .work-shortcut:active { background:#183994; }
+/* Leave clear air between the CTA and the falling bobbin on phones. */
+@media(max-width:640px) {
+  .hero-actions .work-shortcut {
+    padding-inline:.8rem;
+    gap:.42rem;
+    font-size:.875rem;
+  }
+  .hero-actions .work-shortcut svg { width:12px; height:12px; }
+}
 @media(max-width:359px) {
   .hero-actions .work-shortcut { padding-inline:.7rem; font-size:.86rem; }
   .hero-actions .work-shortcut svg { display:none; }
