@@ -139,6 +139,7 @@ export function CottonFilm({
     events.forEach((e) =>
       window.addEventListener(e, stopFollowing, { passive: true }),
     )
+    let lastUpload = -1
     let impacted = false
     const initialScroll = scrollY
     function draw() {
@@ -239,14 +240,20 @@ export function CottonFilm({
         dx - scale * (x - start[0]),
         dy - scale * (y - start[1]),
       )
-      ctx.texImage2D(
-        ctx.TEXTURE_2D,
-        0,
-        ctx.RGB,
-        ctx.RGB,
-        ctx.UNSIGNED_BYTE,
-        video,
-      )
+      const decoded =
+        video.getVideoPlaybackQuality?.().totalVideoFrames ||
+        Math.floor(video.currentTime * 30)
+      if (decoded !== lastUpload) {
+        lastUpload = decoded
+        ctx.texImage2D(
+          ctx.TEXTURE_2D,
+          0,
+          ctx.RGB,
+          ctx.RGB,
+          ctx.UNSIGNED_BYTE,
+          video,
+        )
+      }
       ctx.clear(ctx.COLOR_BUFFER_BIT)
       ctx.drawArrays(ctx.TRIANGLES, 0, grid.length / 2)
       anchor.classList.add("film-playing")
