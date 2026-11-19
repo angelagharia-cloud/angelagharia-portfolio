@@ -110,7 +110,7 @@ function CornerCatch({
           style={{ pathLength: line }}
         />
       </mask>
-      <motion.g transform={swing}><g mask={`url(#catch-line-${id})`}>
+      <motion.g className="catch-leading-fibre" transform={swing}><g mask={`url(#catch-line-${id})`}>
         <CottonStrip curve={path} width={3.2} step={12} />
       </g></motion.g>
       <motion.g style={{opacity}}>
