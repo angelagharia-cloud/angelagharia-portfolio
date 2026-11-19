@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useState, type ReactNode } from "react"
 import { motion } from "motion/react"
 import { ArrowDown, ArrowRight } from "lucide-react"
 import { Link } from "../lib/router"
@@ -12,7 +12,7 @@ import { SectionLabel } from "./system/SectionLabel"
 import { ProjectCover } from "./covers"
 
 import { PortraitReveal } from "./PortraitReveal"
-import { SeasonalHeroAccents } from "./SeasonalHeroAccents"
+
 import { HeroSpool, ProjectThread, ThreadProcess } from "./ThreadJourney"
 
 const CREDENTIALS = [
@@ -69,31 +69,30 @@ export function HomePage() {
   const [threadStarted, setThreadStarted] = useState(false)
   const [arrived, setArrived] = useState(false)
   const onArrival = useCallback(() => setArrived(true), [])
-  const followTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => () => {
-    if (followTimer.current) clearTimeout(followTimer.current)
-  }, [])
-
+  const [take, setTake] = useState(0)
+  useEffect(() => {
+    if (threadStarted || arrived) return
+    const section = document.querySelector(".process-canvas")
+    if (!section) return
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) setArrived(true)
+    }, { threshold: .35 })
+    observer.observe(section)
+    return () => observer.disconnect()
+  }, [threadStarted, arrived])
   const followThread = () => {
-    if (followTimer.current) clearTimeout(followTimer.current)
-    if (!threadStarted) setThreadStarted(true)
+    if (threadStarted && !arrived) return
+    setTake(previous => previous + 1)
+    setThreadStarted(true)
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    if (reduced) setArrived(true)
-    if (!threadStarted && !reduced) return
-    followTimer.current = setTimeout(() => {
-      document.getElementById("design-process")?.scrollIntoView({
-        behavior: reduced ? "instant" : "smooth",
-        block: "start",
-      })
-    }, 0)
+    setArrived(reduced)
+    if (reduced) document.getElementById("design-process")?.scrollIntoView({ behavior: "instant" })
   }
-
   return (
     <>
       <div className="thread-story"><ProjectThread active={arrived} />
-      <Hero threadStarted={threadStarted} onFollowThread={followThread} onArrival={onArrival} />
-      <ThreadProcess active={arrived} />
+      <Hero take={take} arrived={arrived} threadStarted={threadStarted} onFollowThread={followThread} onArrival={onArrival} />
+      <ThreadProcess key={take} active={arrived} />
       <Highlights />
       <SelectedWork /></div>
       <About />
@@ -133,16 +132,16 @@ function MaskLine({
   )
 }
 
-function Hero({ threadStarted, onFollowThread, onArrival }: { threadStarted: boolean; onFollowThread: () => void; onArrival: () => void }) {
+function Hero({ take, arrived, threadStarted, onFollowThread, onArrival }: { take: number; arrived: boolean; threadStarted: boolean; onFollowThread: () => void; onArrival: () => void }) {
   return (
     <section className="relative isolate pt-10 lg:pt-12">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(56rem_36rem_at_12%_42%,rgba(40,85,216,0.045),transparent_62%),radial-gradient(46rem_34rem_at_88%_18%,rgba(165,139,108,0.11),transparent_60%)]"
       />
-      <SeasonalHeroAccents />
-      <div className="relative z-10 shell grid items-end gap-x-6 gap-y-7 pt-12 sm:pt-16 lg:min-h-[calc(100svh_-_4rem)] lg:grid-cols-12 lg:pt-12">
-        <div className="relative z-20 lg:col-span-6 lg:self-center lg:pb-12">
+
+      <div className="hero-composition relative z-10 shell grid items-end gap-x-6 gap-y-7 pt-12 sm:pt-16 lg:min-h-[calc(100svh_-_4rem)] lg:grid-cols-12 lg:pt-12">
+        <div className="hero-copy relative z-20 lg:col-span-6 lg:self-center lg:pb-12">
           <motion.p {...intro(0)} className="t-eyebrow text-neutral-500">
             UX/UI &amp; Product Designer
           </motion.p>
@@ -153,7 +152,7 @@ function Hero({ threadStarted, onFollowThread, onArrival }: { threadStarted: boo
               <MaskLine delay={0.18} className="italic text-[#2855D8]">
                 Agharia
               </MaskLine>
-              <HeroSpool active={threadStarted} onArrival={onArrival} />
+              <HeroSpool key={take} active={threadStarted} onArrival={onArrival} />
             </span>
           </h1>
 
@@ -186,7 +185,7 @@ function Hero({ threadStarted, onFollowThread, onArrival }: { threadStarted: boo
 
           <motion.div
             {...intro(0.58)}
-            className="mt-9 flex flex-wrap items-center gap-3"
+            className="hero-actions mt-9 flex flex-wrap items-center gap-3"
           >
             <Link to="home" section="work" className={`${btn.primary} thread-primary-cta`}>
               View selected work
@@ -195,8 +194,8 @@ function Hero({ threadStarted, onFollowThread, onArrival }: { threadStarted: boo
                 strokeWidth={1.75}
               />
             </Link>
-            <button type="button" onClick={onFollowThread} className={`${btn.secondary} thread-secondary-cta`}>
-              Follow the thread
+            <button type="button" onClick={onFollowThread} aria-disabled={threadStarted && !arrived} className={`${btn.secondary} thread-secondary-cta`}>
+              {arrived && threadStarted ? "Replay the thread" : "Follow the thread"}
               <ArrowDown className="h-4 w-4" aria-hidden="true" strokeWidth={1.75} />
             </button>
           </motion.div>
@@ -206,7 +205,7 @@ function Hero({ threadStarted, onFollowThread, onArrival }: { threadStarted: boo
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.1, ease: EASE_OUT, delay: 0.12 }}
-          className="relative mx-auto w-full max-w-[22rem] sm:max-w-[27rem] lg:col-span-6 lg:max-w-none"
+          className="hero-subject relative mx-auto w-full max-w-[22rem] sm:max-w-[27rem] lg:col-span-6 lg:max-w-none"
         >
           <PortraitReveal threadImpact={threadStarted} />
         </motion.div>

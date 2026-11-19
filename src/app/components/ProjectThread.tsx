@@ -156,7 +156,12 @@ export function ProjectThread({ active }: { active: boolean }) {
             x + width * (0.38 * Math.cos(radians) + 0.3 * Math.sin(radians)),
           inletY =
             y + width * (0.38 * Math.sin(radians) - 0.3 * Math.cos(radians))
-        const path = `M ${px} ${py} Q ${rail} ${py + 5} ${rail} ${py + 28} L ${rail} ${inletY - 15} Q ${rail} ${inletY - 8} ${rail - 12} ${inletY - 8} L ${inletX + 12} ${inletY - 8} Q ${inletX} ${inletY - 8} ${inletX} ${inletY}`
+        // Let the long free span hang under tension and approach each loop
+        // with a tangent. The outer margin keeps it clear of case-study copy.
+        const reach = inletY - py
+        const path = `M ${px} ${py}
+          C ${px + (rail - px) * .8} ${py + 5}, ${rail} ${py + reach * .12}, ${rail} ${py + reach * .35}
+          S ${rail + 3} ${inletY - 44}, ${inletX} ${inletY}`
         result.push({
           id: projects[i],
           x,

@@ -251,3 +251,33 @@
 .process-spool[hidden] { display:none; }
 .resting-bobbin { display:block; width:100%; }
 .corner-take { width:100%; height:100%; background-size:800% 600%; background-repeat:no-repeat; }
+
+/* Keep the title, release control and real shoulder in one mobile composition. */
+@media (max-width: 1023px) {
+  .thread-story .hero-composition {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 0;
+    padding-top: 2.65rem;
+  }
+  .hero-copy { display: contents; }
+  .hero-copy > .t-eyebrow { grid-area: 1 / 1 / 2 / 3; }
+  .hero-copy > h1 { grid-area: 2 / 1 / 3 / 3; margin: 1.6rem 0 .3rem; }
+  .hero-actions { grid-area: 3 / 1; align-self: start; padding-top: 1rem; flex-direction: column-reverse; align-items: flex-start; margin: 0; z-index: 2; }
+  .hero-actions > * { min-height: 44px; padding-inline: clamp(.6rem, 2.7vw, 1.4rem); white-space: nowrap; }
+  .hero-subject { grid-area: 3 / 2; width: 125%; justify-self: end; margin: 0; }
+  .hero-subject .portrait-stage { aspect-ratio: 3 / 4; }
+  .hero-copy > .t-lead { grid-area: 4 / 1 / 5 / 3; margin-top: 1.4rem; }
+  .hero-copy > dl { grid-area: 5 / 1 / 6 / 3; margin-block: 1.3rem 2rem; width: 100%; }
+}
+@media (max-width: 1023px) {
+  .hero-copy > .t-lead, .hero-copy > dl { margin-left: 2.25rem; width: calc(100% - 2.25rem); }
+  .thread-process .process-intro, .thread-process .process-topline { padding-left: 2.25rem; }
+}
+.process-word { padding-top: .65rem; border-top: 2px solid transparent; }
+.process-word[data-current="true"] { border-color: #2855d8; }
+.process-word[data-current="true"] strong { color: #2448a3; }
+@media (max-width:640px) {
+  .process-canvas { height: 285px; }
+  .process-intro { margin-top: 2rem; }
+}

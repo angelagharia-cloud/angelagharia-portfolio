@@ -259,6 +259,7 @@ export function ThreadProcess({ active }: { active: boolean }) {
   const canvas = useRef<HTMLDivElement>(null)
   const path = useRef<SVGPathElement>(null)
   const reduced = useReducedMotion()
+  const [stage, setStage] = useState(0)
   const [settled, setSettled] = useState(false)
   const finish = useCallback(() => setSettled(true), [])
   const positionX = useMotionValue("21.667%")
@@ -272,6 +273,7 @@ export function ThreadProcess({ active }: { active: boolean }) {
     if (!node) return
     const total = node.getTotalLength()
     const pos = node.getPointAtLength(total * Math.min(1, Math.max(0, settled ? (reduced ? 1 : value) : 0)))
+    setStage(pos.x < 324 ? 0 : pos.x < 612 ? 1 : pos.x < 948 ? 2 : 3)
     positionX.set(`${pos.x / 12}%`)
     positionY.set(`${pos.y / 3.8}%`)
   })
@@ -282,7 +284,8 @@ export function ThreadProcess({ active }: { active: boolean }) {
     const node = path.current
     if (node) {
       const pos = node.getPointAtLength(node.getTotalLength() * value)
-      positionX.set(`${pos.x / 12}%`)
+      setStage(pos.x < 324 ? 0 : pos.x < 612 ? 1 : pos.x < 948 ? 2 : 3)
+    positionX.set(`${pos.x / 12}%`)
       positionY.set(`${pos.y / 3.8}%`)
     }
   }, [active, settled, reduced, progress, scrollYProgress, positionX, positionY])
@@ -309,7 +312,7 @@ export function ThreadProcess({ active }: { active: boolean }) {
             style={{ left: positionX, top: positionY, transform: "translate(-50%, -50%)" }}>
             <img src={restingBobbin} alt="" className="resting-bobbin" />
           </motion.div>
-          {words.map((word, i) => <div key={word.title} className="process-word" style={{ left: word.x }}>
+          {words.map((word, i) => <div key={word.title} className="process-word" data-current={settled && stage === i} style={{ left: word.x }}>
             <span className="process-number">0{i + 1}</span>
             <strong>{word.title}</strong>
             <small>{word.sub}</small>

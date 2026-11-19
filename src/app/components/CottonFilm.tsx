@@ -1,331 +1,178 @@
-import landingAtlas from "../../imports/opt/process-landing.webp"
 import { useEffect, useRef } from "react"
-import film from "../../assets/cotton-flight.mp4"
-import tracking from "../../assets/cotton-flight.json"
+import spin from "../../assets/cotton-studio.webp"
+import smallSpin from "../../assets/cotton-studio-small.webp"
+import fibre from "../../imports/opt/cotton-fibre.webp"
+import landing from "../../imports/opt/process-landing.webp"
 
-const vertex = `
-attribute vec2 uv;
-uniform vec2 viewport, origin, head, start, shift;
-uniform float scale;
-varying vec2 tex;
-void main() {
-  tex = uv;
-  vec2 p = uv * vec2(480.,270.) - start;
-  vec2 axis = head - start;
-  float reach = length(axis);
-  float axisPosition = dot(p,axis)/max(reach,1.);
-  // Leave both the anchored end and the photographed bobbin locally rigid.
-  float blend = smoothstep(0.,max(1.,reach - 32.),axisPosition);
-  float rigid = 1. - smoothstep(44.,60.,distance(uv*vec2(480.,270.),head));
-  blend = max(blend,rigid);
-  vec2 screen = origin + scale * p + shift * blend;
-  // Retain a gravity belly when the take is registered to a shallower layout.
-  float slack = sin(3.14159265*blend);
-  screen.y += min(26.,.085*length(scale*axis+shift))*slack*slack;
-  gl_Position = vec4(screen / viewport * vec2(2.,-2.) + vec2(-1.,1.),0.,1.);
-}`
-const fragment = `
-precision highp float;
-uniform sampler2D plate;
-uniform vec2 head;
-varying vec2 tex;
-void main(){
-  vec3 rgb = texture2D(plate,tex).rgb;
-  // The generated stand shares the key colour. Only cotton and cardboard
-  // have warm red-channel detail; recover their light from the blue mix.
-  float warmth = (rgb.r - rgb.b) / max(rgb.b,.01);
-  float a = smoothstep(-.59,-.02,warmth);
-  if (tex.x * 480. > head.x + 40. || a < .025) discard;
-  vec3 clean = clamp((rgb - (1.-a)*vec3(.075,.24,.80))/max(a,.025),0.,1.);
-  clean.b = min(clean.b,clean.g);
-  float strand = smoothstep(34.,40.,distance(tex*vec2(480.,270.),head));
-  float fibreLight = dot(clean,vec3(.30,.59,.11));
-  vec3 cotton = mix(vec3(.34,.26,.19),vec3(.76,.66,.52),fibreLight);
-  clean = mix(clean,cotton,strand);
-  a = mix(a,sqrt(a),strand);
-  gl_FragColor = vec4(clean * a,a);
-}`
+const clamp = (t: number) => Math.max(0, Math.min(1, t))
+const smooth = (t: number) => clamp(t) ** 2 * (3 - 2 * clamp(t))
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t
+type Point = { x: number; y: number }
+const rollEnd = 1.45
+const hit = 2.72
+const finish = 4.85
 
-export function CottonFilm({
-  onFallback,
-  onArrival,
-}: {
-  onFallback: () => void
-  onArrival: () => void
-}) {
+// Sample both the centreline and its local tangent. The fine cotton texture
+// follows the bend, while a continuous core stays legible at phone resolution.
+function strand(ctx: CanvasRenderingContext2D, texture: HTMLImageElement, points: Point[], weight: number) {
+  ctx.lineCap = "round"
+  ctx.lineJoin = "round"
+  ctx.beginPath()
+  points.forEach(({ x, y }, i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))
+  ctx.strokeStyle = "#887460"
+  ctx.lineWidth = weight
+  ctx.stroke()
+  ctx.strokeStyle = "#d7c8ad"
+  ctx.lineWidth = weight * .55
+  ctx.stroke()
+  if (!texture.naturalWidth) return
+  let arc = 0
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1], b = points[i]
+    const dx = b.x - a.x, dy = b.y - a.y
+    const length = Math.hypot(dx, dy)
+    if (length < .25) continue
+    ctx.save()
+    ctx.translate(a.x, a.y)
+    ctx.rotate(Math.atan2(dy, dx))
+    ctx.globalAlpha = .8
+    ctx.drawImage(texture, Math.floor(arc * 5) % 192, 0, 64, 64, 0, -weight, length + .35, 2 * weight)
+    ctx.restore()
+    arc += length
+  }
+}
+
+export function CottonFilm({ onFallback, onArrival }: { onFallback: () => void; onArrival: () => void }) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const canvas = ref.current!
+    const ctx = canvas.getContext("2d")
+    if (!ctx) { onFallback(); return }
     const anchor = canvas.closest<HTMLElement>(".spool-origin")!
     const word = anchor.parentElement!
     const jacket = document.querySelector<HTMLElement>("#portrait-stage img")!
-    const process = document.querySelector<HTMLElement>(".process-canvas")!
-    const video = document.createElement("video")
-    const landingPreload = new Image()
-    landingPreload.src = landingAtlas
-    video.muted = true
-    video.playsInline = true
-    const gl = canvas.getContext("webgl", {
-      alpha: true,
-      antialias: false,
-      depth: false,
-    })
-    if (!gl) {
-      onFallback()
-      return
-    }
-    const shaders: WebGLShader[] = []
-    const program = gl.createProgram()!
-    for (const [kind, source] of [
-      [gl.VERTEX_SHADER, vertex],
-      [gl.FRAGMENT_SHADER, fragment],
-    ] as const) {
-      const shader = gl.createShader(kind)!
-      gl.shaderSource(shader, source)
-      gl.compileShader(shader)
-      gl.attachShader(program, shader)
-      shaders.push(shader)
-    }
-    gl.linkProgram(program)
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-      shaders.forEach((s) => gl.deleteShader(s))
-      gl.deleteProgram(program)
-      onFallback()
-      return
-    }
-    gl.useProgram(program)
-    const grid: number[] = []
-    for (let y = 0; y < 32; y++)
-      for (let x = 0; x < 64; x++) {
-        for (const [dx, dy] of [
-          [0, 0],
-          [1, 0],
-          [0, 1],
-          [1, 0],
-          [1, 1],
-          [0, 1],
-        ])
-          grid.push((x + dx) / 64, (y + dy) / 32)
-      }
-    const buffer = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(grid), gl.STATIC_DRAW)
-    const uv = gl.getAttribLocation(program, "uv")
-    gl.enableVertexAttribArray(uv)
-    gl.vertexAttribPointer(uv, 2, gl.FLOAT, false, 0, 0)
-    const texture = gl.createTexture()
-    gl.bindTexture(gl.TEXTURE_2D, texture)
-    for (const setting of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER])
-      gl.texParameteri(gl.TEXTURE_2D, setting, gl.LINEAR)
-    for (const setting of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T])
-      gl.texParameteri(gl.TEXTURE_2D, setting, gl.CLAMP_TO_EDGE)
-    const uniform = Object.fromEntries(
-      ["viewport", "origin", "head", "start", "shift", "scale"].map((k) => [
-        k,
-        gl.getUniformLocation(program, k),
-      ]),
-    )
-    const start = tracking.points[0],
-      hit = tracking.points[tracking.contact],
-      last = tracking.points[tracking.points.length - 1]
-    let raf = 0,
-      disposed = false,
-      following = true,
-      finished = false
-    const stopFollowing = () => {
-      following = false
-    }
-    const events = ["wheel", "touchstart", "keydown"] as const
-    events.forEach((e) =>
-      window.addEventListener(e, stopFollowing, { passive: true }),
-    )
-    let lastUpload = -1
-    let impacted = false
+    const entry = document.querySelector<HTMLElement>(".landing-entry")!
+    const atlas = new Image(), grain = new Image(), landingPlate = new Image()
+    atlas.src = innerWidth <= 640 ? smallSpin : spin
+    grain.src = fibre
+    landingPlate.src = landing
+    let raf = 0, start = 0, previous = 0, disposed = false, landed = false, following = true, touched = false
+    const stop = () => { following = false }
+    const inputs = ["wheel", "touchstart", "keydown"] as const
+    inputs.forEach(event => window.addEventListener(event, stop, { passive: true }))
     const initialScroll = scrollY
-    function draw() {
-      if (disposed || finished) return
-      const ctx = gl!
-      const w = innerWidth,
-        h = innerHeight,
-        dpr = Math.min(devicePixelRatio, 1.5)
-      if (
-        canvas.width !== Math.round(w * dpr) ||
-        canvas.height !== Math.round(h * dpr)
-      ) {
+    function paint(now: number) {
+      if (disposed || !ctx) return
+      if (!start) start = now
+      const time = Math.min(finish, (now - start) / 1000)
+      const dt = Math.min(.05, (now - previous) / 1000)
+      previous = now
+      const w = innerWidth, h = innerHeight, dpr = Math.min(devicePixelRatio, 2, Math.sqrt(2_100_000 / (w * h)))
+      if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
         canvas.width = Math.round(w * dpr)
         canvas.height = Math.round(h * dpr)
-        ctx.viewport(0, 0, canvas.width, canvas.height)
       }
-      const frame = Math.min(tracking.points.length - 1, video.currentTime * 24)
-      const index = Math.floor(frame),
-        mix = frame - index
-      const a = tracking.points[index],
-        b = tracking.points[Math.min(index + 1, tracking.points.length - 1)]
-      const x = a[0] + (b[0] - a[0]) * mix,
-        y = a[1] + (b[1] - a[1]) * mix
-      const o = anchor.getBoundingClientRect(),
-        p = jacket.getBoundingClientRect(),
-        e = process.querySelector(".landing-entry")!.getBoundingClientRect()
-      const width =
-        anchor.querySelector<HTMLElement>(".flight-spool")!.offsetWidth
-      const startScale = (width * 0.83) / start[2]
-      const arrivalWidth =
-        (process.querySelector<HTMLElement>(".cotton-landing")!.offsetWidth *
-          75) /
-        384
-      const travel = Math.max(
-        0,
-        (frame - tracking.contact) /
-          (tracking.points.length - 1 - tracking.contact),
-      )
-      const scale =
-        startScale + (arrivalWidth / last[2] - startScale) * travel * travel
-      const cx = p.left + p.width * 0.24 - width * 0.38 - o.left,
-        cy = p.top + p.height * 0.21 - o.top
-      const wordRect = word.getBoundingClientRect()
-      const run = Math.max(3, wordRect.right - o.left - width * 0.04)
-      const pivot = o.left - wordRect.left
-      const releaseIndex = tracking.points.findIndex(
-        (pt, i) =>
-          i <= tracking.contact && (pt[0] - start[0]) * startScale >= run,
-      )
-      const release =
-        releaseIndex < 1 ? Math.round(tracking.contact * 0.38) : releaseIndex
-      const edge = tracking.points[release]
-      const smooth = (v: number) => v * v * (3 - 2 * v)
-      const tilt =
-        frame <= release
-          ? smooth(Math.min(1, frame / Math.max(1, release * 0.8)))
-          : 1 - smooth(Math.min(1, (frame - release) / 13))
-      let dx: number, dy: number
-      const drop = (pivot + run) * Math.sin(Math.PI / 45)
-      if (frame <= release) {
-        dx =
-          run *
-          Math.max(
-            0,
-            Math.min(1, (x - start[0]) / Math.max(1, edge[0] - start[0])),
-          )
-        dy = (pivot + dx) * Math.sin((tilt * Math.PI) / 45)
-      } else if (frame <= tracking.contact) {
-        const t = Math.max(
-          0,
-          Math.min(1, (x - edge[0]) / Math.max(1, hit[0] - edge[0])),
-        )
-        const fall = Math.max(
-          0,
-          Math.min(1, (y - edge[1]) / Math.max(1, hit[1] - edge[1])),
-        )
-        // The stacked layout also releases to the right before turning toward the jacket.
-        const tangent = Math.min(
-          w * 0.25,
-          Math.max(run, (hit[0] - edge[0]) * startScale),
-        )
-        dx =
-          cx >= run
-            ? run + (cx - run) * t
-            : run + tangent * t * (1 - t) * (1 - t) + (cx - run) * smooth(t)
-        dy = drop + (cy - drop) * fall
-      } else {
-        const t =
-          (frame - tracking.contact) /
-          (tracking.points.length - 1 - tracking.contact)
-        const s = t * t
-        dx =
-          cx +
-          (e.left - o.left - cx) * s +
-          scale * (x - hit[0] - s * (last[0] - hit[0]))
-        dy =
-          cy +
-          (e.top - o.top - cy) * s +
-          scale * (y - hit[1] - s * (last[1] - hit[1]))
-      }
-      if (!impacted && frame >= tracking.contact) {
-        impacted = true
-        jacket.animate(
-          [
-            { rotate: "0deg" },
-            { rotate: ".28deg", offset: 0.24 },
-            { rotate: "-.06deg", offset: 0.68 },
-            { rotate: "0deg" },
-          ],
-          { duration: 330 },
-        )
-      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, w, h)
+      const o = anchor.getBoundingClientRect(), p = jacket.getBoundingClientRect(), e = entry.getBoundingClientRect()
+      const width = anchor.querySelector<HTMLElement>(".flight-spool")!.offsetWidth
+      const size = width * .84
+      const run = word.getBoundingClientRect().right - o.left
+      const pivot = o.left - word.getBoundingClientRect().left
+      const u = clamp(time / rollEnd), v = clamp((time - rollEnd) / (hit - rollEnd)), t = clamp((time - hit) / (finish - hit))
+      const tilt = smooth(u / .82) * (1 - smooth((time - rollEnd) / .54))
       word.style.setProperty("--surname-tilt", String(4 * tilt) + "deg")
-      if (following)
-        window.scrollTo({
-          top: Math.max(initialScroll, scrollY + o.top + dy - h * 0.6),
-          behavior: "instant",
-        })
-      const pos = anchor.getBoundingClientRect()
-      ctx.uniform2f(uniform.viewport, w, h)
-      ctx.uniform2f(uniform.origin, pos.left, pos.top)
-      ctx.uniform2f(uniform.head, x, y)
-      ctx.uniform2f(uniform.start, start[0], start[1])
-      ctx.uniform1f(uniform.scale, scale)
-      ctx.uniform2f(
-        uniform.shift,
-        dx - scale * (x - start[0]),
-        dy - scale * (y - start[1]),
-      )
-      const decoded =
-        video.getVideoPlaybackQuality?.().totalVideoFrames ||
-        Math.floor(video.currentTime * 30)
-      if (decoded !== lastUpload) {
-        lastUpload = decoded
-        ctx.texImage2D(
-          ctx.TEXTURE_2D,
-          0,
-          ctx.RGB,
-          ctx.RGB,
-          ctx.UNSIGNED_BYTE,
-          video,
-        )
+      const edgeY = o.top + (pivot + run) * Math.sin(Math.PI / 45)
+      const shoulderX = p.left + p.width * .27 - size * .39
+      const shoulderY = p.top + p.height * .205
+      const landingWidth = entry.parentElement!.offsetWidth * 75 / 384
+      const diameter = lerp(size, landingWidth, smooth(t))
+      let x: number, y: number
+      if (time <= rollEnd) {
+        x = o.left + run * u * u
+        y = o.top + (pivot + run * u * u) * Math.sin(tilt * Math.PI / 45)
+      } else if (time <= hit) {
+        x = lerp(o.left + run, shoulderX, v)
+        y = lerp(edgeY, shoulderY, v * v)
+      } else {
+        // Deflect out from the cloth, then accelerate towards the landing.
+        const rebound = 1 - Math.exp(-10 * t)
+        x = lerp(shoulderX, e.left, smooth(t)) - Math.min(54, w * .08) * rebound * (1 - t) ** 2
+        y = lerp(shoulderY, e.top, t * t) - Math.min(84, h * .10) * Math.sin(Math.PI * t) * (1 - t) ** 3
       }
-      ctx.clear(ctx.COLOR_BUFFER_BIT)
-      ctx.drawArrays(ctx.TRIANGLES, 0, grid.length / 2)
+      // On narrow screens, let the bobbin clear the controls before it
+      // reaches the margin alongside the biography and process introduction.
+      if (time > hit && w < 1024) {
+        const copy = document.querySelector<HTMLElement>(".hero-copy > .t-lead")!.getBoundingClientRect()
+        const rail = Math.max(diameter * .53 + 2, copy.left * .45)
+        const clear = smooth((y - shoulderY - 38) / Math.max(90, copy.top - shoulderY - 65))
+        const enter = smooth((y - e.top + 105) / 105)
+        x = lerp(lerp(shoulderX, rail, clear), e.left, enter)
+      }
+      const followTarget = Math.max(initialScroll, scrollY + y - h * .57)
+      if (!landed && following && time > rollEnd)
+        window.scrollTo({ top: lerp(scrollY, followTarget, 1 - Math.exp(-12 * dt)), behavior: "instant" })
+      const offset = anchor.getBoundingClientRect().top - o.top
+      y += offset
+      const lag = Math.exp(-7 * t) * Math.sin(16 * t)
+      const end = { x: x - diameter * .24, y: y + diameter * .20 }
+      const root = { x: o.left + size * .15, y: o.top + offset + size * .30 }
+      const points: Point[] = []
+      function span(from: Point, to: Point, slack: number) {
+        const length = Math.hypot(to.x - from.x, to.y - from.y)
+        const count = Math.max(2, Math.ceil(length / 6))
+        for (let i = points.length ? 1 : 0; i <= count; i++) {
+          const q = i / count
+          points.push({
+            x: lerp(from.x, to.x, q) + lag * 8 * Math.sin(Math.PI * q),
+            y: lerp(from.y, to.y, q) + 4 * q * (1 - q) * slack,
+          })
+        }
+      }
+      const seam = { x: shoulderX - size * .24, y: shoulderY + offset + size * .20 }
+      const firstEnd = time <= hit ? end : seam
+      span(root, firstEnd, Math.min(32, Math.abs(firstEnd.x - root.x) * .09) * smooth(time / rollEnd))
+      if (time > hit) span(seam, end, Math.min(24, Math.hypot(end.x - seam.x, end.y - seam.y) * .1))
+      // Once the free end slips off the type, keep a finite paid-out tail.
+      // It follows the bobbin into the loose coil in the landing footage.
+      const slip = smooth((time - hit - .12) / 1.12)
+      const keep = lerp(points.length, Math.min(points.length, 19), slip)
+      const tail = points.slice(Math.max(0, points.length - Math.ceil(keep)))
+      if (time < finish) strand(ctx, grain, tail, w < 640 ? 1.25 : 1.65)
+      if (time < finish) {
+        const frame = Math.round(47 * clamp((u * u * .22 + v * .30 + t * .48)))
+        const cellW = atlas.naturalWidth / 8, cellH = atlas.naturalHeight / 6
+        ctx.save()
+        ctx.translate(x, y)
+        ctx.rotate((4 * tilt + 7 * v - 13 * Math.sin(Math.PI * t)) * Math.PI / 180)
+        ctx.drawImage(atlas, (frame % 8) * cellW, Math.floor(frame / 8) * cellH, cellW, cellH, -diameter / 2, -diameter * cellH / cellW / 2, diameter, diameter * cellH / cellW)
+        ctx.restore()
+      }
       anchor.classList.add("film-playing")
-      if (frame >= tracking.points.length - 1) {
-        finished = true
-        video.pause()
-        anchor.classList.add("flight-landed")
-        canvas.hidden = true
-        onArrival()
-        return
+      if (!touched && time >= hit) {
+        touched = true
+        jacket.animate([{ translate: "0 0" }, { translate: "1.5px 1px", offset: .21 }, { translate: "0 0" }], { duration: 285 })
       }
-      raf = requestAnimationFrame(draw)
+      if (time < finish) raf = requestAnimationFrame(paint)
+      else if (!landed) {
+        landed = true
+        anchor.classList.add("flight-landed")
+        canvas.width = canvas.height = 1
+        canvas.hidden = true
+        atlas.removeAttribute("src")
+        grain.removeAttribute("src")
+        landingPlate.removeAttribute("src")
+        onArrival()
+      }
     }
-    const fail = () => {
-      if (!disposed) onFallback()
-    }
-    canvas.addEventListener("webglcontextlost", fail)
-    video.onerror = fail
-    video.src = film
-    video
-      .play()
-      .then(() => {
-        if (!disposed) draw()
-      })
-      .catch(fail)
+    atlas.decode().then(() => { if (!disposed) raf = requestAnimationFrame(paint) }).catch(() => { if (!disposed) onFallback() })
     return () => {
-      canvas.removeEventListener("webglcontextlost", fail)
       disposed = true
       cancelAnimationFrame(raf)
-      video.onerror = null
-      video.pause()
-      video.removeAttribute("src")
-      video.load()
-      events.forEach((e) => window.removeEventListener(e, stopFollowing))
-      word.style.removeProperty("--surname-tilt")
+
+      inputs.forEach(event => window.removeEventListener(event, stop))
       anchor.classList.remove("film-playing", "flight-landed")
-      releaseResources()
-    }
-    function releaseResources() {
-      gl!.deleteTexture(texture)
-      gl!.deleteBuffer(buffer)
-      gl!.deleteProgram(program)
-      shaders.forEach((s) => gl!.deleteShader(s))
+      word.style.removeProperty("--surname-tilt")
     }
   }, [onFallback, onArrival])
   return <canvas ref={ref} aria-hidden="true" className="cotton-film" />
