@@ -1,50 +1,214 @@
-/* The Thread of Reason — restrained editorial motion, no fixed overlays. */
-.hero-name-with-thread { position: relative; display: inline-block; isolation: isolate; }
-.hero-spool { position: absolute; z-index: 3; top: -34px; right: -38px; width: 79px; height: 76px; pointer-events: none; overflow: visible; }
-.hero-spool-object { position: absolute; inset: 0; transform-origin: 50% 50%; filter: drop-shadow(4px 9px 7px rgba(62, 45, 26, .18)); }
-.hero-spool-object > svg { width: 100%; height: 100%; }
-.hero-thread-tail { position: absolute; width: 210px; height: 270px; left: 12px; top: 34px; overflow: visible; }
-.thread-process { position: relative; padding: clamp(5rem, 9vw, 9rem) 0 clamp(4rem, 7vw, 7rem); background: #faf9f7; overflow: hidden; border-bottom: 1px solid #e9e5e1; }
-.process-topline,.process-footer { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
-.process-intro { margin-top: clamp(2.5rem, 5vw, 4rem); display: grid; gap: 1.25rem; align-items: end; grid-template-columns: 1.7fr 1fr; }
-.process-intro em { color: #8f816f; font-weight: normal; }
-.process-canvas { position: relative; height: clamp(270px, 30vw, 430px); margin: 1.5rem 0 .5rem; }
-.process-path { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: visible; }
-.process-spool { position: absolute; width: clamp(58px, 6.5vw, 92px); aspect-ratio: 120 / 105; transform-origin: 50% 50%; transition: left 70ms linear, top 70ms linear; filter: drop-shadow(5px 9px 8px rgba(62, 45, 26, .16)); will-change: transform; pointer-events: none; }
-.process-spool svg { width: 100%; height: 100%; }
-.process-word { position: absolute; bottom: 2%; display: grid; gap: .2rem; max-width: 22%; font-size: .875rem; }
-.process-number { color: #a08f7b; font-size: .68rem; letter-spacing: .16em; }
-.process-word strong { color: #242424; font-weight: 600; }
-.process-word small { color: #77716a; font-size: .74rem; }
-.process-footer { border-top: 1px solid #e5dfd6; padding-top: 1.1rem; font-size: .8rem; color: #706a63; }
-.process-footer a { color: #252525; font-weight: 600; text-decoration: underline; text-underline-offset: 5px; }
-.process-footer a:hover { color: #2854ce; }
+/*
+ * The Thread of Reason — warm editorial palette with a single cobalt accent.
+ * Cinematic movement is an enhancement, never a prerequisite for navigation.
+ */
+.thread-story {
+  position: relative;
+  isolation: isolate;
+  overflow: clip;
+  color: #23242a;
+  background: #f7f4ee;
+}
+.thread-story > section:first-of-type {
+  position: relative;
+  z-index: 3;
+  background:
+    radial-gradient(ellipse 37% 62% at 84% 57%, rgba(189, 160, 124, .12), transparent 88%),
+    radial-gradient(ellipse 48% 55% at 0% 36%, rgba(40, 85, 216, .035), transparent 85%);
+}
+.thread-story #work {
+  position: relative;
+  background: #f7f4ee;
+}
+.thread-primary-cta {
+  background: #2855d8 !important;
+  color: #fff !important;
+  box-shadow: 0 14px 38px -20px rgba(40, 85, 216, .64);
+}
+.thread-primary-cta:hover,
+.thread-primary-cta:focus-visible {
+  background: #2046b6 !important;
+}
+.thread-secondary-cta {
+  border-color: #c6c0b6 !important;
+  background: rgba(255, 255, 255, .78) !important;
+  color: #23242a !important;
+}
+.thread-secondary-cta:hover,
+.thread-secondary-cta:focus-visible {
+  border-color: #2855d8 !important;
+  color: #2046b6 !important;
+}
+.hero-name-with-thread {
+  position: relative;
+  display: inline-block;
+  isolation: isolate;
+}
+.spool-origin {
+  position: absolute;
+  right: -.5rem;
+  top: 2%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 12;
+}
+.flight-spool {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: clamp(70px, 7.4vw, 116px);
+  aspect-ratio: 384 / 326;
+  transform-origin: 50% 50%;
+  filter: drop-shadow(2px 7px 5px rgba(73, 51, 28, .22));
+  will-change: transform, offset-distance;
+}
+.spool-frames {
+  display: block;
+  width: 100%;
+  aspect-ratio: 384 / 326;
+  background-repeat: no-repeat;
+}
+.spool-poster {
+  display: block;
+  width: 100%;
+  height: 100%;
+  user-select: none;
+}
+.spool-frames[style*="background-image"] .spool-poster {
+  visibility: hidden;
+}
+.flight-thread {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: visible;
+  pointer-events: none;
+  filter: drop-shadow(0 1px .5px rgba(56, 37, 21, .18));
+}
+.project-thread {
+  position: absolute;
+  inset: 0 auto auto 0;
+  width: 100%;
+  height: 1px;
+  overflow: visible;
+  z-index: 4;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+.thread-process {
+  position: relative;
+  scroll-margin-top: 5.5rem;
+  isolation: isolate;
+  padding: clamp(5.25rem, 9vw, 9.25rem) 0 clamp(4rem, 7vw, 7rem);
+  background: #fbf9f5;
+  border-top: 1px solid rgba(125, 106, 83, .14);
+  border-bottom: 1px solid rgba(125, 106, 83, .14);
+}
+.thread-process::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: .35;
+  background:
+    radial-gradient(ellipse 42% 38% at 10% 63%, rgba(183, 158, 123, .13), transparent 90%),
+    radial-gradient(ellipse 43% 47% at 88% 15%, rgba(40, 85, 216, .06), transparent 90%);
+}
+.thread-process > .shell { position: relative; z-index: 1; }
+.process-topline, .process-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+.process-topline > :first-child { color: #2855d8; }
+.process-intro {
+  margin-top: clamp(2.5rem, 5vw, 4.25rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  align-items: end;
+  gap: clamp(1.25rem, 3.2vw, 3.5rem);
+}
+.process-intro h2 { max-width: 10ch; letter-spacing: -.045em; }
+.process-intro em { color: #8e7659; font-weight: normal; }
+.process-intro p { justify-self: end; }
+.process-canvas {
+  position: relative;
+  height: clamp(305px, 32vw, 470px);
+  margin: clamp(1.6rem, 4vw, 3rem) 0 .7rem;
+}
+.process-path {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.process-spool {
+  position: absolute;
+  width: clamp(67px, 6.8vw, 105px);
+  aspect-ratio: 384 / 326;
+  transform-origin: 50% 50%;
+  filter: drop-shadow(5px 10px 8px rgba(62, 45, 26, .18));
+  pointer-events: none;
+  will-change: left, top;
+}
+.process-spool .spool-frames { width: 100%; }
+.process-word {
+  position: absolute;
+  bottom: 1%;
+  display: grid;
+  gap: .28rem;
+  max-width: 24%;
+  font-size: clamp(.73rem, 1vw, .9rem);
+}
+.process-number {
+  color: #2855d8;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+.process-word strong { color: #23242a; font-weight: 650; }
+.process-word small { color: #736c64; font-size: .74rem; }
+.process-footer {
+  border-top: 1px solid #ded7cc;
+  padding-top: 1.35rem;
+  font-size: .83rem;
+  color: #665e56;
+}
+.process-footer a {
+  color: #2855d8;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+  transition: color .18s ease;
+}
+.process-footer a:hover { color: #163b9e; }
+.process-footer a:focus-visible { outline: 2px solid #2855d8; outline-offset: 4px; }
+
 @media (max-width: 1023px) {
-  .hero-spool { top: -24px; right: -28px; width: 64px; height: 62px; }
   .process-intro { grid-template-columns: 1fr; }
+  .process-intro p { justify-self: start; }
+  .flight-spool { width: clamp(66px, 9vw, 98px); }
 }
 @media (max-width: 640px) {
-  .hero-spool { top: -22px; right: -12px; width: 49px; height: 48px; }
-  .hero-thread-tail { transform: scale(.65); transform-origin: top left; }
-  .process-topline { align-items: start; flex-direction: column; }
-  .process-canvas { height: 330px; margin-top: 2rem; }
-  .process-word { bottom: 0; width: 25%; font-size: .65rem; max-width: 25%; }
+  .spool-origin { right: .2rem; top: -5%; }
+  .flight-spool { width: 62px; }
+  .process-topline { align-items: flex-start; flex-direction: column; }
+  .process-canvas { height: 340px; margin-top: 2rem; }
+  .process-word { bottom: 0; width: 25%; max-width: 25%; font-size: .68rem; }
   .process-word small { display: none; }
-  .process-spool { width: 50px; }
-  .process-footer { font-size: .7rem; }
+  .process-spool { width: 53px; }
+  .process-footer { font-size: .72rem; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hero-spool-object,.process-spool { transition: none !important; animation: none !important; }
+  .flight-spool, .process-spool, .spool-frames {
+    animation: none !important;
+    transition: none !important;
+    will-change: auto;
+  }
 }
-.thread-story { position:relative; overflow:clip; background:#faf9f6; }
-.spool-origin { position:absolute; right:0; top:8%; width:0; height:0; pointer-events:none; }
-.flight-spool { display:block; width:clamp(66px,7vw,108px); }
-.flight-spool { position:absolute; left:0; top:0; filter:drop-shadow(1px 4px 3px #47362333); }
-.cotton-render { display:block; width:100%; height:auto; }
-.flight-thread,.project-thread { position:absolute; pointer-events:none; overflow:visible; left:0; top:0; width:1px; height:1px; }
-.project-thread { width:100%; z-index:2; }
-.thread-story > section:first-of-type { z-index:3; }
-.process-footer a { color:#304da0; }
-.spool-frames { display:block; width:100%; aspect-ratio:384 / 326; background-repeat:no-repeat; }
-.spool-poster { width:100%; height:100%; display:block; }
-.spool-frames[style*="background-image"] .spool-poster { visibility:hidden; }
