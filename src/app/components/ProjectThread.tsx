@@ -8,6 +8,8 @@ import {
 } from "motion/react"
 import { CottonStrip } from "./CottonStrip"
 import tieAtlas from "../../imports/opt/card-tie.webp"
+import spoolAtlas from "../../assets/cotton-studio.webp"
+import smallSpoolAtlas from "../../assets/cotton-studio-small.webp"
 
 const projects = ["creative-key", "gravitad", "stammer-halo"]
 type Catch = {
@@ -150,21 +152,16 @@ export function ProjectThread({ active }: { active: boolean }) {
   const svg = useRef<SVGSVGElement>(null)
   const traveller = useRef<SVGForeignObjectElement>(null)
   const [shots, setShots] = useState<Catch[]>([])
-  const [nearWork, setNearWork] = useState(false)
+  const shotRef = useRef<Catch[]>([])
+  const [spoolSize, setSpoolSize] = useState(88)
   const cursor = useMotionValue(0)
+  const spoolX = useMotionValue(0)
+  const spoolY = useMotionValue(0)
+  const spoolOpacity = useMotionValue(0)
+  const spoolFrame = useMotionValue("100% 100%")
   const reduced = useReducedMotion()
   useEffect(() => {
-    if (!active || nearWork) return
-    const work = document.getElementById("work")
-    if (!work) return
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) setNearWork(true)
-    }, {rootMargin:"100% 0px"})
-    observer.observe(work)
-    return () => observer.disconnect()
-  }, [active, nearWork])
-  useEffect(() => {
-    if (!active || !nearWork) return
+    if (!active) return
     const canvas = document.querySelector<HTMLElement>(".process-canvas")!
     const cards = projects.map((id) =>
       document
@@ -314,7 +311,7 @@ export function ProjectThread({ active }: { active: boolean }) {
       ro.disconnect()
       window.removeEventListener("scroll", update)
     }
-  }, [active, nearWork, reduced, cursor])
+  }, [active, reduced, cursor, spoolX, spoolY, spoolOpacity, spoolFrame])
   return (
     <svg ref={svg} aria-hidden="true" className="project-thread" data-continuation="clarity-to-selected-work">
       {active &&
