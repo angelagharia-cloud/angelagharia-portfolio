@@ -44,6 +44,16 @@ async function review(label, viewport, reducedMotion="no-preference") {
   });
   assert(seam.dx<5 && seam.dy<5,label+": cotton from process must meet work path "+JSON.stringify(seam));
 
+  // Capture every motion progress tick in-page. Screenshot compositing can
+  // take over a second on the complex textured SVG, after the drop has ended.
+  // Testing two screenshots alone would incorrectly report a frozen strand.
+  await page.evaluate(()=>{
+    const layer=document.querySelector(".project-thread");
+    const samples=[Number(layer.dataset.gravityProgress||0)];
+    const observer=new MutationObserver(()=>samples.push(Number(layer.dataset.gravityProgress||0)));
+    observer.observe(layer,{attributes:true,attributeFilter:["data-gravity-progress"]});
+    window.__cottonSamples={samples,observer};
+  });
   await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),releaseScroll+2);
   await page.waitForTimeout(150);
   // Motion's SVG pathLength can render without an inline stroke-dash style.
@@ -66,11 +76,15 @@ async function review(label, viewport, reducedMotion="no-preference") {
   const end=await state();
   const second=await page.screenshot({path:output+"/"+label+"-drop-end.png"});
   const secondCotton=await page.screenshot({clip});
-  console.log(label+" cotton release", JSON.stringify({start,end,changed:!firstCotton.equals(secondCotton)}));
-  assert(end.progress>start.progress+.15,
-    label+": gravity release is stuck "+JSON.stringify({start,end}));
-  assert(!firstCotton.equals(secondCotton) || Math.abs(end.drop-start.drop)>10,
-    label+": cotton is not visibly moving at the Clarity handoff");
+  const sampled=await page.evaluate(()=>{
+    const recording=window.__cottonSamples;
+    recording?.observer.disconnect();
+    return recording?.samples||[];
+  });
+  const extent={min:Math.min(...sampled),max:Math.max(...sampled),frames:sampled.length};
+  console.log(label+" cotton release", JSON.stringify({start,end,extent,changed:!firstCotton.equals(secondCotton)}));
+  assert(extent.max-extent.min>.45 && extent.frames>5,
+    label+": gravity release did not visibly advance "+JSON.stringify({start,end,extent}));
 
   await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),releaseScroll+170);
   await page.waitForTimeout(160);
