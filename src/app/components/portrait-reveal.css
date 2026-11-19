@@ -38,6 +38,10 @@
 .portrait-controls { display:flex; align-items:center; justify-content:center; gap:.1rem; min-height:3.5rem; }
 .portrait-controls button { white-space:nowrap; }
 .portrait-controls button:disabled { opacity:.55; }
+@media (min-width:1024px) {
+  .hero-copy > h1 { transform-origin:left center; transition:transform 440ms cubic-bezier(.35,0,.2,1); }
+  .hero-composition:has(.portrait-stage[data-open="true"]) .hero-copy > h1 { transform:scale(.78); }
+}
 .textile-floor {
   position:absolute; pointer-events:none; z-index:0; opacity:.74;
   left:-40%; right:-26%; bottom:1.5rem; height:28%;
@@ -62,5 +66,5 @@
   .hero-composition:has(.portrait-stage[data-open="true"]) .hero-actions { align-self:end; padding:0 0 .4rem; }
 }
 @media(prefers-reduced-motion:reduce) {
-  .portrait-stage, .portrait-stage[data-preparing="true"] { transition:none; }
+  .portrait-stage, .portrait-stage[data-preparing="true"], .hero-copy > h1 { transition:none; }
 }

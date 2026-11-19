@@ -1,5 +1,5 @@
 import { useEffect, useRef, type RefObject } from "react"
-import type { TypeRail } from "./typeRail"
+import { measureTypeRail, type TypeRail } from "./typeRail"
 import spin from "../../assets/cotton-studio.webp"
 import smallSpin from "../../assets/cotton-studio-small.webp"
 import fibre from "../../imports/opt/cotton-fibre.webp"
@@ -291,8 +291,14 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
       await new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done())))
       if (disposed) return
       const figure = jacket.closest(".portrait-figure")
-      await Promise.all((figure?.parentElement?.getAnimations({subtree:true}) ?? []).map(animation => animation.finished.catch(() => {})))
-      if (!disposed) raf = requestAnimationFrame(paint)
+      const settling = [...(figure?.parentElement?.getAnimations({subtree:true}) ?? []), ...word.closest("h1")!.getAnimations()]
+      await Promise.all(settling.map(animation => animation.finished.catch(() => {})))
+      if (disposed) return
+      if (!railRef.current) {
+        railRef.current = measureTypeRail(word, anchor, anchor.querySelector<HTMLElement>(".flight-spool")!.offsetWidth * .84)
+        if (railRef.current) word.style.setProperty("--rail-top", railRef.current.heights[0] + "px")
+      }
+      raf = requestAnimationFrame(paint)
     }).catch(() => { if (!disposed) onFallback() })
     return () => {
       disposed = true

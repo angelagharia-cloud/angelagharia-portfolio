@@ -79,6 +79,7 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
       // Compose the release relative to the real shoulder. A short downhill
       // run cannot throw a sewing spool across several hundred pixels.
       const title = origin!.closest("h1")!
+      if (getComputedStyle(title).transform !== "none") return
       const label = origin!.parentElement!
       const portraitRect = portrait!.getBoundingClientRect()
       const bodyWidth = origin!.querySelector<HTMLElement>(".flight-spool")!.offsetWidth * .84
@@ -157,10 +158,13 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
     observer.observe(portrait)
     observer.observe(process)
     observer.observe(document.body)
+    const title = origin.closest("h1")!
+    title.addEventListener("transitionend", schedule)
     window.addEventListener("resize", schedule)
     return () => {
       cancelAnimationFrame(raf)
       observer.disconnect()
+      title.removeEventListener("transitionend", schedule)
       window.removeEventListener("resize", schedule)
     }
   }, [])
