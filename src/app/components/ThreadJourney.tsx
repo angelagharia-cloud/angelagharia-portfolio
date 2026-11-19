@@ -395,6 +395,8 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
       const travel = (value - arrival) / Math.max(.001, 1 - arrival)
       const phase = active ? (reduced ? 4 : Math.max(0, Math.min(4, travel * 4))) : 0
       const chapterIndex = Math.min(3, Math.floor(phase))
+      // Expose the real morph state for automated browser verification.
+      node.dataset.untangleProgress = Math.min(1, phase).toFixed(3)
 
       // Material geometry changes as the scroll moves: real coils contract,
       // thread segments un-cross, and the laid strand becomes quieter.
