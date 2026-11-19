@@ -75,24 +75,36 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
     await page.screenshot({ path: `${output}/${name}-arrival-viewport.png` });
     const release = await page.locator(".process-track").evaluate(el =>
       scrollY + el.getBoundingClientRect().bottom - innerHeight * .72)
-    for (const delta of [-2, 2, 100, -2]) {
-      await page.evaluate(y => window.scrollTo({top:y, behavior:"instant"}), release + delta)
-      await page.waitForTimeout(180)
-      const pose = await page.evaluate(() => {
-        const actor = document.querySelector(".work-spool")
-        const source = document.querySelector(".process-spool")
+    async function pose(label) {
+      const result = await page.evaluate(() => {
+        const spool = document.querySelector(".process-spool")
         const mark = document.querySelector(".process-exit").getBoundingClientRect()
-        const box = actor.getBoundingClientRect()
-        return {moving:getComputedStyle(actor).visibility === "visible",
-          parked:getComputedStyle(source).visibility === "visible" && !source.hidden,
-          dx:box.left + box.width/2 - mark.left, dy:box.top + box.height/2 - mark.top}
+        const box = spool.getBoundingClientRect()
+        const mask = document.querySelector("#catch-line-creative-key path")
+        return { visible: !spool.hidden && getComputedStyle(spool).visibility === "visible",
+          offset: Math.hypot(box.left + box.width / 2 - mark.left, box.top + box.height / 2 - mark.top),
+          paid: parseFloat(mask.getAttribute("stroke-dasharray")) }
       })
-      assert.equal(pose.moving, delta > 0)
-      assert.equal(pose.parked, delta < 0)
-      if (delta === 2) assert(Math.hypot(pose.dx, pose.dy) < 12, JSON.stringify(pose))
-      if (delta === 100) assert(pose.dy > 10, JSON.stringify(pose))
-      await page.screenshot({path:output + "/" + name + "-handoff-" + delta + ".png"})
+      assert(result.visible && result.offset < 3, JSON.stringify(result))
+      await page.screenshot({path:output + "/" + name + "-handoff-" + label + ".png"})
+      return result.paid
     }
+    const scroll = delta => page.evaluate(y => window.scrollTo({top:y, behavior:"instant"}), release + delta)
+    await scroll(0)
+    await page.waitForTimeout(350)
+    const held = await pose("held")
+    await scroll(4)
+    await page.waitForTimeout(220)
+    const falling = await pose("falling")
+    await page.waitForTimeout(1000)
+    const settled = await pose("settled")
+    assert(settled > falling && falling > held, JSON.stringify({held, falling, settled}))
+    await scroll(150)
+    await page.waitForTimeout(100)
+    assert(await pose("continuation") > settled)
+    await scroll(-1)
+    await page.waitForTimeout(450)
+    assert(await pose("reverse") < .001)
     await page.locator("#work").scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
     // Verify this is the same *physical* strand: the Selected Work

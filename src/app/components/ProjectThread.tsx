@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import {
+  animate,
   motion,
   useMotionValue,
   useReducedMotion,
@@ -8,8 +9,6 @@ import {
 } from "motion/react"
 import { CottonStrip } from "./CottonStrip"
 import tieAtlas from "../../imports/opt/card-tie.webp"
-import spoolAtlas from "../../assets/cotton-studio.webp"
-import smallSpoolAtlas from "../../assets/cotton-studio-small.webp"
 
 const projects = ["creative-key", "gravitad", "stammer-halo"]
 type Catch = {
@@ -23,6 +22,8 @@ type Catch = {
   angle: number
   path: string
   start: number
+  anchorX: number
+  swingRoom: number
   finish: number
   arrival: number
 }
@@ -30,12 +31,23 @@ type Catch = {
 function CornerCatch({
   shot,
   cursor,
+  release,
 }: {
   shot: Catch
+  release: MotionValue<number>
   cursor: MotionValue<number>
 }) {
   const { id, x, y, width, path, start, arrival } = shot
   const line = useTransform(cursor, [start, arrival], [0, 1])
+  const swing = useTransform(() => {
+    if (id !== projects[0]) return ""
+    const t = release.get()
+    // Tilt only the loose span. Fade the swing before the first card takes its weight.
+    const slack = Math.max(0, 1 - line.get() * 4)
+    const angle = Math.sin(t * Math.PI * 2) * (1 - t) * slack * shot.swingRoom / 100
+    const drop = 1 - .75 * (1 - t) * slack
+    return `translate(${shot.anchorX} ${start}) matrix(1 0 ${angle} ${drop} 0 0) translate(${-shot.anchorX} ${-start})`
+  })
   const frame = useTransform(cursor, [arrival, shot.finish], [0, 47])
   const position = useTransform(frame, (n) => {
     const i = Math.round(n)
@@ -97,9 +109,9 @@ function CornerCatch({
           style={{ pathLength: line }}
         />
       </mask>
-      <g mask={`url(#catch-line-${id})`}>
+      <motion.g transform={swing}><g mask={`url(#catch-line-${id})`}>
         <CottonStrip curve={path} width={3.2} step={12} />
-      </g>
+      </g></motion.g>
       <mask
         id={`behind-edge-${id}`}
         maskUnits="userSpaceOnUse"
@@ -150,15 +162,9 @@ function CornerCatch({
 
 export function ProjectThread({ active }: { active: boolean }) {
   const svg = useRef<SVGSVGElement>(null)
-  const traveller = useRef<SVGForeignObjectElement>(null)
   const [shots, setShots] = useState<Catch[]>([])
-  const shotRef = useRef<Catch[]>([])
-  const [spoolSize, setSpoolSize] = useState(88)
   const cursor = useMotionValue(0)
-  const spoolX = useMotionValue(0)
-  const spoolY = useMotionValue(0)
-  const spoolOpacity = useMotionValue(0)
-  const spoolFrame = useMotionValue("100% 100%")
+  const release = useMotionValue(0)
   const reduced = useReducedMotion()
   useEffect(() => {
     if (!active) return
@@ -169,27 +175,14 @@ export function ProjectThread({ active }: { active: boolean }) {
         ?.closest("article"),
     )
     const layer = svg.current!
-    const spool = canvas.querySelector<HTMLElement>(".process-spool")!
-    const moving = traveller.current!
-    const sprite = moving.firstElementChild as HTMLElement
-    let spans: { shot: Catch, guide: SVGPathElement, length: number }[] = []
-    function follow() {
-      const value = cursor.get()
-      const away = !reduced && spans.length > 0 && value > spans[0].shot.start
-      moving.style.visibility = away ? "visible" : "hidden"
-      spool.style.visibility = away ? "hidden" : ""
-      if (!away) return
-      const span = spans.find(({shot}) => value < shot.finish) ?? spans[spans.length - 1]
-      const {shot, guide, length} = span
-      const fraction = Math.max(0, Math.min(1, (value - shot.start) / (shot.arrival - shot.start)))
-      const tip = guide.getPointAtLength(length * fraction)
-      const wrap = Math.max(0, Math.min(1, (value - shot.arrival) / (shot.finish - shot.arrival)))
-      const x = tip.x + (shot.x + 4 - tip.x) * wrap
-      const y = tip.y + (shot.y + 35 - tip.y) * wrap
-      moving.setAttribute("x", String(x - spool.offsetWidth / 2))
-      moving.setAttribute("y", String(y - spool.offsetHeight / 2))
-      sprite.style.backgroundPosition = getComputedStyle(spool).backgroundPosition
-      sprite.style.transform = "rotate(" + Math.min(value - spans[0].shot.start, 90) * .4 + "deg)"
+    let released = false
+    let target = 0
+    let from = 0
+    let arrival = 0
+    function draw() {
+      // A short length pays out under its own weight, even if scrolling stops.
+      const slack = Math.min(110, Math.max(0, arrival - target))
+      cursor.set(Math.min(arrival, from + slack * release.get()) + (target - from))
     }
     function update() {
       if (reduced) {
@@ -202,29 +195,34 @@ export function ProjectThread({ active }: { active: boolean }) {
       const exit = canvas.querySelector<HTMLElement>(".process-exit")?.getBoundingClientRect()
       // When the process canvas is sticky, project its endpoint to the
       // *released* position at the end of the scroll track, not today's frame.
-      const from = (exit?.top ?? (box.top + box.height * 198 / 380)) +
+      from = (exit?.top ?? (box.top + box.height * 198 / 380)) +
         (trackBottom - box.bottom) - origin
       const distancePastClarity = innerHeight * 0.72 - trackBottom
-      if (distancePastClarity <= 0) {
-        cursor.set(spans[0]?.shot.start ?? from)
+      const nextReleased = distancePastClarity > 0
+      if (released !== nextReleased) {
+        released = nextReleased
+        animate(release, released ? 1 : 0, {duration: released ? .95 : .28, ease: "easeInOut"})
+      }
+      if (!released) {
+        target = from
+        draw()
         return
       }
       const visible = innerHeight * 0.68 - origin
       const first = cards[0]!.getBoundingClientRect().top - origin - 90
       // Meet the first catch at the reading line, after clarity is complete.
       const remaining = Math.max(0, first - visible)
-      cursor.set(
-        remaining
+      target = remaining
           ? from +
               ((first - from) * distancePastClarity) /
                 (distancePastClarity + remaining)
-          : visible,
-      )
+          : visible
+      draw()
     }
     function measure() {
       const origin = layer.getBoundingClientRect(),
         box = canvas.getBoundingClientRect()
-      const rail = Math.min(origin.width - spool.offsetWidth / 2, box.right - origin.left + 12)
+      const rail = Math.min(origin.width - 6, box.right - origin.left + 12)
       const exit = canvas.querySelector<HTMLElement>(".process-exit")?.getBoundingClientRect()
       const trackBottom = canvas.parentElement!.getBoundingClientRect().bottom
       // The process line ends at x=1170,y=198 on its SVG. Read its exact
@@ -281,44 +279,36 @@ export function ProjectThread({ active }: { active: boolean }) {
           width,
           angle,
           path,
+          anchorX: px, swingRoom: Math.min(32, Math.max(0, origin.width - rail - 3)),
           start, arrival, finish: arrival + 48,
         })
         px = x + 4
         py = y + 35
       })
-      moving.setAttribute("width", String(spool.offsetWidth))
-      moving.setAttribute("height", String(spool.offsetHeight))
-      sprite.style.backgroundImage = getComputedStyle(spool).backgroundImage
-      spans = result.map(shot => {
-        const guide = document.createElementNS("http://www.w3.org/2000/svg", "path")
-        guide.setAttribute("d", shot.path)
-        return {shot, guide, length: guide.getTotalLength()}
-      })
+      arrival = result[0]?.arrival ?? 0
       setShots(result)
       update()
     }
-    const unsubscribe = cursor.on("change", follow)
+    const unsubscribe = release.on("change", draw)
     measure()
-    follow()
     const ro = new ResizeObserver(measure)
     ro.observe(document.body)
     cards.forEach((c) => c && ro.observe(c))
     window.addEventListener("scroll", update, { passive: true })
     return () => {
       unsubscribe()
-      spool.style.visibility = ""
-      moving.style.visibility = "hidden"
+      release.stop()
+      release.set(0)
       ro.disconnect()
       window.removeEventListener("scroll", update)
     }
-  }, [active, reduced, cursor, spoolX, spoolY, spoolOpacity, spoolFrame])
+  }, [active, reduced, cursor, release])
   return (
     <svg ref={svg} aria-hidden="true" className="project-thread" data-continuation="clarity-to-selected-work">
       {active &&
         shots.map((shot) => (
-          <CornerCatch key={shot.id} shot={shot} cursor={cursor} />
+          <CornerCatch key={shot.id} shot={shot} cursor={cursor} release={release} />
         ))}
-      <foreignObject ref={traveller} className="work-spool"><div /></foreignObject>
     </svg>
   )
 }
