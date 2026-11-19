@@ -182,12 +182,15 @@ export function ProjectThread({ active }: { active: boolean }) {
         const fall = easeFall((t - .15 * (1 - u)) / (1 - .15 * (1 - u)))
         const wave = Math.sin(Math.PI * u)
         // Stay within the narrow right-side gutter on phones.
+        // Settle along the OUTSIDE edge of the work column. A single
+        // generous bow reads as suspended cotton and avoids the CTA and
+        // the statistics; the old alternating sine waves zig-zagged across
+        // both. Endpoints remain fixed to Clarity and the first stitch.
+        const outside = phone ? 13 : Math.min(84, window.innerWidth * .056)
         const suspendedX = pivot.x + (firstTip.x - pivot.x) * u +
-          wave * ((phone ? 9 : 34) * Math.sin(3.5 * Math.PI * u) -
-                  (phone ? 4 : 16) * Math.sin(7 * Math.PI * u) +
-                  (phone ? 11 : 0))
+          outside * wave + (phone ? 1.1 : 3.2) * wave * Math.sin(2 * Math.PI * u)
         const suspendedY = pivot.y + (firstTip.y - pivot.y) * u +
-          wave * 16 * Math.sin(3 * Math.PI * u)
+          10 * wave
 
         // The soft bow is concentrated just beyond the spool, rather than
         // bending the whole line like elastic. Its small gravitational sag
@@ -250,8 +253,12 @@ export function ProjectThread({ active }: { active: boolean }) {
       if (falling !== released) {
         released = falling
         release.stop()
-        if (falling) animate(release, 1, { duration: 1.45, ease: [0.33, 0.02, 0.27, 1] })
-        else release.set(0)
+        if (falling) {
+          // A previous scroll past the threshold can leave the motion value
+          // at 1 even if the view was reset. Start every new drop from slack.
+          release.set(0)
+          animate(release, 1, { duration: 1.65, ease: [0.35, 0.05, 0.25, 1] })
+        } else release.set(0)
       }
       if (!falling) {
         travelled = from
