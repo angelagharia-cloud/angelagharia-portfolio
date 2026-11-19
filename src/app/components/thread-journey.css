@@ -499,3 +499,18 @@
 @media (prefers-reduced-motion: reduce) {
   .project-thread .continuous-cotton-fibre { filter: none; }
 }
+
+/* The falling cotton occupies the outside-right gutter. Keep the last
+   process action left-aligned so its underline and hit target stay clear. */
+.thread-process .process-footer {
+  justify-content: flex-start;
+  padding-top: clamp(1.1rem, 2.2vw, 1.5rem);
+}
+.thread-process .process-footer a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+/* The fibre hangs in front of the section background, never in front of a
+   clickable card or its project content. */
+.thread-story #work article { isolation: isolate; }
