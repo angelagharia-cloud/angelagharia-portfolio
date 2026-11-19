@@ -125,257 +125,272 @@ function CornerCatch({
   )
 }
 
+
+type CottonPoint = { x: number; y: number }
+type CottonPart = { command: string; start: number; finish: number }
+const clamp01 = (n: number) => Math.max(0, Math.min(1, n))
+const easeFall = (v: number) => {
+  const t = clamp01(v)
+  return t * t * (3 - 2 * t)
+}
+
 export function ProjectThread({ active }: { active: boolean }) {
   const svg = useRef<SVGSVGElement>(null)
   const [shots, setShots] = useState<Catch[]>([])
+  const [handoff, setHandoff] = useState(false)
+  const [ready, setReady] = useState(false)
+  const [textured, setTextured] = useState(false)
   const cursor = useMotionValue(0)
   const release = useMotionValue(0)
-  // One material strand crosses the entire process AND all work cards.
-  // At the Clarity handoff it replaces the process-only rendering atomically:
-  // the existing fibre continues falling, rather than a second fibre appearing.
-  const [cotton, setCotton] = useState<ContinuousSpoolThread | null>(null)
-  const [handoff, setHandoff] = useState(false)
-  const drawn = useMotionValue(0)
+  const fibre = useMotionValue("M 0 0")
+  const reveal = useMotionValue(0)
   const reduced = useReducedMotion()
   useEffect(() => {
     if (!active) return
-    const canvas = document.querySelector<HTMLElement>(".process-canvas")!
-    const cards = projects.map((id) =>
-      document
-        .querySelector(`#work article a[href="#/${id}"]`)
-        ?.closest("article"),
-    )
     const layer = svg.current!
+    const canvas = document.querySelector<HTMLElement>(".process-canvas")!
+    const cards = projects.map(id =>
+      document.querySelector<HTMLAnchorElement>('#work article a[href="#/' + id + '"]')?.closest("article"))
+    const sampler = document.createElementNS("http://www.w3.org/2000/svg", "path")
+    const segmentSampler = document.createElementNS("http://www.w3.org/2000/svg", "path")
+    let source: CottonPoint[] = []
+    let pivot: CottonPoint = { x: 0, y: 0 }
+    let oldTip: CottonPoint = { x: 0, y: 0 }
+    let firstTip: CottonPoint = { x: 0, y: 0 }
+    let parts: CottonPart[] = []
     let released = false
-    let target = 0
     let from = 0
-    let arrival = 0
-    let geometry: ContinuousSpoolThread | null = null
-    let segments: RevealSegment[] = []
-    const progressOf = (n: number) => Math.max(0, Math.min(1, n))
+    let travelled = 0
+    let priorFibre = ""
+    let priorShotLayout = ""
+    let lastSample = 0
+
     function draw() {
-      // Gravity releases the original fibre after Clarity, even if the user
-      // momentarily stops scrolling. Scrolling then draws the same yarn
-      // through each card.
-      const slack = Math.min(110, Math.max(0, arrival - target))
-      const travelled = Math.min(arrival, from + slack * release.get()) + (target - from)
-      cursor.set(travelled)
-      if (geometry) {
-        let paidLength = geometry.processLength
-        for (const segment of segments) {
-          const lead = progressOf((travelled - segment.scrollStart) /
-            Math.max(1, segment.scrollArrival - segment.scrollStart))
-          const stitch = progressOf((travelled - segment.scrollArrival) /
-            Math.max(1, segment.scrollFinish - segment.scrollArrival))
-          paidLength = Math.max(paidLength,
-            segment.startAt + lead * (segment.leadEnd - segment.startAt) +
-              stitch * (segment.stitchedEnd - segment.leadEnd))
+      if (!source.length) return
+      const t = release.get()
+      // The spool is source[0] (Clarity). The thread's real, free end is
+      // source[last] (Noise), NOT a new segment beginning at the spool.
+      // Gravity draws this same material downward, untying each old loop.
+      const moving = source.map((point, i) => {
+        const u = i / (source.length - 1)
+        const fall = easeFall((t - .17 * (1 - u)) / (1 - .17 * (1 - u)))
+        const wave = Math.sin(Math.PI * u)
+        // On phones the falling yarn stays within the right edge of the
+        // composition instead of sweeping across the highlights numbers.
+        const phone = window.matchMedia("(max-width: 640px)").matches
+        const suspendedX = pivot.x + (firstTip.x - pivot.x) * u +
+          wave * ((phone ? 9 : 34) * Math.sin(3.5 * Math.PI * u) -
+                  (phone ? 4 : 16) * Math.sin(7 * Math.PI * u) +
+                  (phone ? 11 : 0))
+        const suspendedY = pivot.y + (firstTip.y - pivot.y) * u +
+          wave * 16 * Math.sin(3 * Math.PI * u)
+        return {
+          x: point.x + (suspendedX - point.x) * fall,
+          y: point.y + (suspendedY - point.y) * fall,
         }
-        drawn.set(Math.min(1, paidLength / Math.max(1, geometry.length)))
+      })
+      let d = moving.map((p, i) =>
+        (i ? " L " : "M ") + p.x.toFixed(2) + " " + p.y.toFixed(2)).join("")
+      segmentSampler.setAttribute("d", d)
+      const baseLength = segmentSampler.getTotalLength()
+      const lengths = [baseLength]
+      for (const part of parts) {
+        d += " " + part.command
+        sampler.setAttribute("d", d)
+        lengths.push(sampler.getTotalLength())
       }
+      const total = Math.max(1, lengths[lengths.length - 1])
+      let paid = baseLength
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i]
+        const progress = clamp01((travelled - part.start) /
+          Math.max(1, part.finish - part.start))
+        paid += progress * (lengths[i + 1] - lengths[i])
+      }
+      if (d !== priorFibre) {
+        priorFibre = d
+        fibre.set(d)
+      }
+      reveal.set(clamp01(paid / total))
+      layer.dataset.gravityProgress = t.toFixed(3)
+      layer.dataset.gravityDrop = (moving[moving.length - 1].y - oldTip.y).toFixed(1)
+      // While the fibre is physically moving, paint its uninterrupted core
+      // as one SVG stroke. Thousands of patterned rectangles can briefly
+      // detach from an animated mask; mount that texture ONLY once settled.
+      setTextured(t >= .985)
     }
+
     function update() {
       if (reduced) {
         cursor.set(Number.MAX_SAFE_INTEGER)
         return
       }
-      const origin = layer.getBoundingClientRect().top
-      const box = canvas.getBoundingClientRect()
-      const trackBottom = canvas.parentElement!.getBoundingClientRect().bottom
+      const rect = canvas.getBoundingClientRect()
+      const bottom = canvas.parentElement!.getBoundingClientRect().bottom
+      const originY = layer.getBoundingClientRect().top
       const exit = canvas.querySelector<HTMLElement>(".process-exit")?.getBoundingClientRect()
-      // When the process canvas is sticky, project its endpoint to the
-      // *released* position at the end of the scroll track, not today's frame.
-      from = (exit?.top ?? (box.top + box.height * 198 / 380)) +
-        (trackBottom - box.bottom) - origin
-      const distancePastClarity = innerHeight * 0.72 - trackBottom
-      const nextReleased = distancePastClarity > 0
-      setHandoff(nextReleased && Boolean(geometry))
-      if (released !== nextReleased) {
-        released = nextReleased
-        if (released) {
-          animate(release, 1, { duration: .95, ease: "easeInOut" })
-        } else {
-          // Scrolling back above Clarity must rewind the paid-out fibre
-          // completely; do not leave the previous separate leading mask
-          // hanging in the whitespace next to the spool.
-          release.stop()
-          release.set(0)
-        }
+      from = (exit?.top ?? (rect.top + rect.height * 198 / 380)) +
+        (bottom - rect.bottom) - originY
+      const past = innerHeight * .72 - bottom
+      const falling = past > 0
+      setHandoff(falling && source.length > 0)
+      if (falling !== released) {
+        released = falling
+        release.stop()
+        if (falling) animate(release, 1, { duration: 1.3, ease: "easeInOut" })
+        else release.set(0)
       }
-      if (!released) {
-        target = from
-        draw()
-        return
-      }
-      const visible = innerHeight * 0.68 - origin
-      const first = cards[0]!.getBoundingClientRect().top - origin - 90
-      // Meet the first catch at the reading line, after clarity is complete.
-      const remaining = Math.max(0, first - visible)
-      target = remaining
-          ? from +
-              ((first - from) * distancePastClarity) /
-                (distancePastClarity + remaining)
+      if (!falling) {
+        travelled = from
+      } else {
+        const first = cards[0]?.getBoundingClientRect()
+        if (!first) return
+        const visible = innerHeight * .68 - originY
+        const cardLine = first.top - originY - 90
+        const remaining = Math.max(0, cardLine - visible)
+        travelled = remaining
+          ? from + (cardLine - from) * past / (past + remaining)
           : visible
+      }
+      cursor.set(travelled)
       draw()
     }
+
     function measure() {
-      const origin = layer.getBoundingClientRect(),
-        box = canvas.getBoundingClientRect()
-      const rail = Math.min(origin.width - 6, box.right - origin.left + 12)
-      const exit = canvas.querySelector<HTMLElement>(".process-exit")?.getBoundingClientRect()
-      const trackBottom = canvas.parentElement!.getBoundingClientRect().bottom
-      // The process line ends at x=1170,y=198 on its SVG. Read its exact
-      // responsive DOM anchor instead of conjuring a new string nearby.
-      // The same endpoint is used for the connector's first SVG command.
-      let px = (exit?.left ?? box.left + box.width * .975) - origin.left,
-        py = (exit?.top ?? box.top + box.height * 198 / 380) +
-          (trackBottom - box.bottom) - origin.top
-      // Capture the process's ACTUAL rendered fibre in the global SVG
-      // coordinate system. This includes the mobile squashing and the small
-      // end-of-process sag, rather than duplicating a generic new string.
-      const processPath = canvas.querySelector<SVGPathElement>("#process-cotton path")
-      const matrix = processPath?.getScreenCTM()
-      const measured = document.createElementNS("http://www.w3.org/2000/svg", "path")
-      const overlayRect = layer.getBoundingClientRect()
-      let whole = ""
-      if (processPath && matrix) {
-        const length = processPath.getTotalLength()
-        const count = Math.max(40, Math.ceil(length / 8))
-        for (let i = 0; i <= count; i++) {
-          const p = processPath.getPointAtLength(length * i / count)
-          const at = new DOMPoint(p.x, p.y).matrixTransform(matrix)
-          const x = at.x - overlayRect.left
-          // The process artwork is sticky until the end of its track.
-          // Move its FULL fibre to the final released position, just as
-          // the endpoint calculation already does. Otherwise a duplicate
-          // squiggle is rendered ~500px above/below the original when the
-          // continuous falling path takes over.
-          const y = at.y - overlayRect.top + (trackBottom - box.bottom)
-          whole += (i === 0 ? "M " : " L ") + x.toFixed(2) + " " + y.toFixed(2)
-          if (i === count) { px = x; py = y }
-        }
+      const layerRect = layer.getBoundingClientRect()
+      const canvasRect = canvas.getBoundingClientRect()
+      const bottom = canvas.parentElement!.getBoundingClientRect().bottom
+      const originalPath = canvas.querySelector<SVGPathElement>("#process-cotton path")
+      const ctm = originalPath?.getScreenCTM()
+      if (!originalPath || !ctm || !cards[0]) return
+      const total = originalPath.getTotalLength()
+      const n = Math.min(360, Math.max(80, Math.ceil(total / 9)))
+      const samples: CottonPoint[] = []
+      for (let i = 0; i <= n; i++) {
+        // Reverse the EXISTING tangled strand: Clarity spool -> Noise free end.
+        const p = originalPath.getPointAtLength(total * (1 - i / n))
+        const transformed = new DOMPoint(p.x, p.y).matrixTransform(ctm)
+        samples.push({
+          x: transformed.x - layerRect.left,
+          y: transformed.y - layerRect.top + bottom - canvasRect.bottom,
+        })
       }
-      measured.setAttribute("d", whole || `M ${px} ${py}`)
-      const processLength = measured.getTotalLength()
-      const boundaries: RevealSegment[] = []
-      const result: Catch[] = []
+      source = samples
+      pivot = samples[0]
+      oldTip = samples[samples.length - 1]
+      const rail = Math.min(layerRect.width - 6, canvasRect.right - layerRect.left + 12)
+      const catches: Catch[] = []
+      const commands: CottonPart[] = []
+      let previousX = 0, previousY = 0
       cards.forEach((card, i) => {
         if (!card) return
         const r = card.getBoundingClientRect()
-        const x = r.right - origin.left - 5,
-          y = r.top - origin.top + 6
-        const inletX = x - 22, inletY = y + 13
-        // Let the long free span hang under tension and approach each loop
-        // with a tangent. The outer margin keeps it clear of case-study copy.
-        const reach = inletY - py
-        const sharedRow = i === 2 && r.width < box.width * .75
-        const gutterY = y - 22
-        const path = i === 0
-          // One continuous falling strand, beginning exactly where Clarity
-          // finishes. It first carries the horizontal tangent of the final
-          // process segment, then gravity takes the string down into the
-          // first card. No separate string enters from the page gutter.
-          ? `M ${px} ${py}
-             C ${px + Math.min(46, Math.max(8, (rail - px) * .55))} ${py},
-               ${rail} ${py + Math.min(28, reach * .09)},
-               ${rail} ${py + Math.min(90, reach * .2)}
-             C ${rail} ${py + reach * .53},
-               ${rail} ${inletY - Math.min(56, reach * .12)},
-               ${inletX} ${inletY}`
-          : sharedRow
-          ? `M ${px} ${py} Q ${rail} ${py+10} ${rail} ${py+30} L ${rail} ${gutterY-15}
-             Q ${rail} ${gutterY} ${rail-24} ${gutterY} C ${rail-80} ${gutterY} ${inletX+32} ${gutterY-4} ${inletX} ${inletY}`
-          : `M ${px} ${py}
-          C ${px + (rail - px) * .8} ${py + 5}, ${rail} ${py + reach * .12}, ${rail} ${py + reach * .35}
-          S ${rail + 3} ${inletY - 44}, ${inletX} ${inletY}`
-        const start = result[result.length - 1]?.finish ?? py
+        const x = r.right - layerRect.left - 5
+        const y = r.top - layerRect.top + 6
+        const inletX = x - 22
+        const inletY = y + 13
+        if (i === 0) firstTip = { x: inletX, y: inletY }
+        const start = catches[catches.length - 1]?.finish ?? from
         const arrival = Math.max(start + 90, inletY)
-        // The same uninterrupted path starts in Noise & Uncertainty, goes
-        // past the anchored Clarity spool, then drops under gravity before
-        // sewing through the project cards. No second "M" can start a fibre.
-        const lead = path.replace(/^\s*M\s*[-+\d.eE]+[\s,]+[-+\d.eE]+/, "")
-        const startAt = measured.getTotalLength()
-        whole += " " + lead
-        measured.setAttribute("d", whole)
-        const leadEnd = measured.getTotalLength()
-        whole += ` C ${inletX+12} ${inletY+10}, ${x-22} ${y+28}, ${x+4} ${y+35}`
-        measured.setAttribute("d", whole)
-        boundaries.push({ startAt, leadEnd, stitchedEnd: measured.getTotalLength(),
-          scrollStart:start, scrollArrival:arrival, scrollFinish:arrival+48 })
-        result.push({
-          inletX,
-          inletY,
-          card,
-          id: projects[i],
-          x,
-          y,
-          path,
-          anchorX: px, swingRoom: Math.min(32, Math.max(0, origin.width - rail - 3)),
-          start, arrival, finish: arrival + 48,
+        const stitch = "C " + (inletX + 12) + " " + (inletY + 10) + ", " +
+          (x - 22) + " " + (y + 28) + ", " + (x + 4) + " " + (y + 35)
+        if (i !== 0) {
+          const reach = inletY - previousY
+          const sharedRow = i === 2 && r.width < canvasRect.width * .75
+          const gutterY = y - 22
+          const lead = sharedRow
+            ? "Q " + rail + " " + (previousY + 10) + " " + rail + " " + (previousY + 30) +
+              " L " + rail + " " + (gutterY - 15) +
+              " Q " + rail + " " + gutterY + " " + (rail - 24) + " " + gutterY +
+              " C " + (rail - 80) + " " + gutterY + " " + (inletX + 32) + " " + (gutterY - 4) +
+              " " + inletX + " " + inletY
+            : "C " + (previousX + (rail - previousX) * .8) + " " + (previousY + 5) +
+              ", " + rail + " " + (previousY + reach * .12) + ", " + rail + " " +
+              (previousY + reach * .35) + " S " + (rail + 3) + " " + (inletY - 44) +
+              ", " + inletX + " " + inletY
+          commands.push({ command: lead, start, finish: arrival })
+        }
+        commands.push({ command: stitch, start: arrival - 15, finish: arrival + 48 })
+        catches.push({
+          id: projects[i], card, x, y, inletX, inletY,
+          path: "M " + (i ? previousX : firstTip.x) + " " +
+            (i ? previousY : firstTip.y) + " " + stitch,
+          start, arrival, finish: arrival + 48, anchorX: pivot.x,
+          swingRoom: Math.min(32, Math.max(0, layerRect.width - rail - 3)),
         })
-        px = x + 4
-        py = y + 35
+        previousX = x + 4
+        previousY = y + 35
       })
-      arrival = result[0]?.arrival ?? 0
-      geometry = { curve: whole, length: measured.getTotalLength(),
-        processLength, maskHeight: Math.max(py, ...result.map(item => item.y)) + 400 }
-      segments = boundaries
-      setCotton(geometry)
-      setShots(result)
+      if (!catches.length) return
+      parts = commands
+      const signature = catches.map(shot => shot.id + ":" +
+        shot.x.toFixed(1) + ":" + shot.y.toFixed(1) + ":" +
+        shot.arrival.toFixed(1)).join("|")
+      if (signature !== priorShotLayout) {
+        priorShotLayout = signature
+        setShots(catches)
+      }
+      setReady(true)
       update()
+      draw()
     }
+
     const unsubscribe = release.on("change", draw)
     measure()
-    const ro = new ResizeObserver(measure)
-    ro.observe(document.body)
-    cards.forEach((c) => c && ro.observe(c))
-    // The last process stage subtly sags under gravity for 1.15s. Re-sample
-    // the ACTUAL original fibre while that happens, including its transform;
-    // otherwise the handed-off copy slowly separates from the tangle by ~26px.
-    let lastSample = 0
-    const processFibre = canvas.querySelector(".process-path > g")
-    const followGravity = new MutationObserver(() => {
-      if (!released) return
-      const now = performance.now()
-      if (now - lastSample < 28) return
-      lastSample = now
+    const observer = new ResizeObserver(measure)
+    observer.observe(document.body)
+    cards.forEach(c => c && observer.observe(c))
+    const originalGroup = canvas.querySelector(".process-path > g")
+    const gravity = new MutationObserver(() => {
+      if (!released || performance.now() - lastSample < 40) return
+      lastSample = performance.now()
       measure()
     })
-    if (processFibre) {
-      followGravity.observe(processFibre, {
-        attributes: true, attributeFilter: ["transform"],
-      })
-    }
+    if (originalGroup) gravity.observe(originalGroup, {
+      attributes: true, attributeFilter: ["transform"],
+    })
     window.addEventListener("scroll", update, { passive: true })
     window.addEventListener("resize", measure)
     return () => {
-      followGravity.disconnect()
-      setHandoff(false)
+      gravity.disconnect()
       unsubscribe()
       release.stop()
-      release.set(0)
-      ro.disconnect()
+      observer.disconnect()
       window.removeEventListener("scroll", update)
       window.removeEventListener("resize", measure)
     }
-  }, [active, reduced, cursor, release, drawn])
+  }, [active, reduced, cursor, release, fibre, reveal])
+
   return (
     <svg ref={svg} aria-hidden="true" className="project-thread"
-      data-continuation="clarity-to-selected-work"
-      data-handoff={handoff && Boolean(cotton)}>
-      {active && cotton && (
+      data-continuation="original-noise-cotton-falls"
+      data-handoff={handoff && ready}>
+      {active && ready && (
         <>
           <mask id="single-cotton-reveal" maskUnits="userSpaceOnUse"
-            x="-100" y="0" width="3000" height={cotton.maskHeight}>
-            <motion.path d={cotton.curve} fill="none" stroke="#fff"
-              strokeWidth="12" style={{ pathLength: drawn }} />
+            x="-100" y="0" width="3000" height="14000">
+            <motion.path d={fibre} fill="none" stroke="#fff" strokeWidth="12"
+              style={{ pathLength: reveal }} />
           </mask>
-          <g className="continuous-cotton-fibre" mask="url(#single-cotton-reveal)">
-            <CottonStrip curve={cotton.curve} width={3.45} step={10} />
+          <g className="continuous-cotton-fibre" fill="none"
+            strokeLinecap="round" strokeLinejoin="round">
+            <motion.path d={fibre} stroke="#65543f" strokeWidth="4.6"
+              strokeOpacity=".27" style={{ pathLength: reveal }} />
+            <motion.path d={fibre} stroke="#bcae9b" strokeWidth="3.25"
+              style={{ pathLength: reveal }} />
+            <motion.path d={fibre} stroke="#e3d7c6" strokeWidth=".72"
+              strokeOpacity=".8" style={{ pathLength: reveal }} />
+            {textured && (
+              <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                transition={{ duration: .38, ease: "easeOut" }}
+                mask="url(#single-cotton-reveal)">
+                <CottonStrip curve={fibre} width={3.45} step={12} />
+              </motion.g>
+            )}
           </g>
         </>
       )}
-      {active && shots.map((shot) => (
+      {active && shots.map(shot => (
         <CornerCatch key={shot.id} shot={shot} cursor={cursor} release={release} />
       ))}
     </svg>
