@@ -49,6 +49,12 @@ jobs:
           exit 1
       - name: Verify natural gravity release
         run: node scripts/review-cotton-release.mjs
+      - name: Verify production GitHub Pages build
+        run: |
+          cp deploy/github-index.html index.html
+          pnpm exec vite build --config vite.config.ts --base /
+          test -s dist/index.html
+          test -n "$(find dist/assets -name '*.js' -print -quit)"
       - name: Retain visual proof
         uses: actions/upload-artifact@v4
         if: always()
