@@ -106,10 +106,10 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
       const sourcePath = document.querySelector("#process-cotton path")
       const p = sourcePath.getPointAtLength(0)
       const origin = new DOMPoint(p.x, p.y).matrixTransform(sourcePath.getScreenCTM())
-      const start = d.match(/^M\\s*([-\\d.]+)\\s+([-\\d.]+)/)
+      const start = d.match(/^M\s*([-\d.]+)\s+([-\d.]+)/)
       return {
         handoff: document.querySelector(".project-thread")?.dataset.handoff,
-        count: (d.match(/\\bM\\b/g) || []).length,
+        count: (d.match(/\bM\b/g) || []).length,
         distance: start ? Math.hypot(Number(start[1]) - (origin.x - screen.left),
           Number(start[2]) - (origin.y - screen.top)) : 999,
         unifiedVisible: unified && getComputedStyle(unified).visibility === "visible",
