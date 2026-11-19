@@ -294,7 +294,8 @@
 .process-track {
   --stage-height: clamp(280px, 43svh, 480px);
   position: relative;
-  height: max(calc(var(--stage-height) + 50svh), 94svh);
+  /* More time to see the knot form, pull taut and settle through four stages. */
+  height: max(calc(var(--stage-height) + 130svh), 170svh);
   margin-top: clamp(1.5rem, 3vw, 3rem);
 }
 .process-track .process-canvas {
