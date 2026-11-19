@@ -245,7 +245,12 @@ export function ProjectThread({ active }: { active: boolean }) {
           const p = processPath.getPointAtLength(length * i / count)
           const at = new DOMPoint(p.x, p.y).matrixTransform(matrix)
           const x = at.x - overlayRect.left
-          const y = at.y - overlayRect.top
+          // The process artwork is sticky until the end of its track.
+          // Move its FULL fibre to the final released position, just as
+          // the endpoint calculation already does. Otherwise a duplicate
+          // squiggle is rendered ~500px above/below the original when the
+          // continuous falling path takes over.
+          const y = at.y - overlayRect.top + (trackBottom - box.bottom)
           whole += (i === 0 ? "M " : " L ") + x.toFixed(2) + " " + y.toFixed(2)
           if (i === count) { px = x; py = y }
         }
