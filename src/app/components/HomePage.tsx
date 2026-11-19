@@ -77,12 +77,13 @@ export function HomePage() {
     if (followTimer.current) clearTimeout(followTimer.current)
     if (!threadStarted) setThreadStarted(true)
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    if (!threadStarted && !reduced) return
     followTimer.current = setTimeout(() => {
       document.getElementById("design-process")?.scrollIntoView({
         behavior: reduced ? "instant" : "smooth",
         block: "start",
       })
-    }, threadStarted || reduced ? 0 : 1920)
+    }, 0)
   }
 
   return (
@@ -522,4 +523,3 @@ function Toolkit() {
     </section>
   )
 }
-

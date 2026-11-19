@@ -1,14 +1,18 @@
 import { useEffect, useRef, useState } from "react"
 import { animate, type MotionValue, motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useTransform } from "motion/react"
+import { Link } from "../lib/router"
 import "./thread-journey.css"
 
 import spoolPoster from "../../assets/cotton-poster.webp"
 import spoolFrames from "../../assets/cotton-turntable.webp"
 
+import processPoster from "../../assets/process-bobbin.webp"
+import processFrames from "../../assets/process-turn.webp"
+
 const frameCount = 48
 const columns = 8
 
-function SpoolIllustration({ turns, active }: { turns: MotionValue<number>; active: boolean }) {
+function SpoolIllustration({ turns, active, process = false }: { turns: MotionValue<number>; active: boolean; process?: boolean }) {
   const element = useRef<HTMLSpanElement>(null)
   useEffect(() => {
     const target = element.current
@@ -22,10 +26,11 @@ function SpoolIllustration({ turns, active }: { turns: MotionValue<number>; acti
       const row = Math.floor(index / columns)
       target!.style.backgroundPosition = `${col * 100 / (columns - 1)}% ${row * 100 / (frameCount / columns - 1)}%`
     }
-    image.src = spoolFrames
+    const frames = process ? processFrames : spoolFrames
+    image.src = frames
     image.decode().then(() => {
       if (cancelled) return
-      target.style.backgroundImage = `url("${spoolFrames}")`
+      target.style.backgroundImage = `url("${frames}")`
       target.style.backgroundSize = "800% 600%"
       draw(turns.get())
       unsubscribe = turns.on("change", draw)
@@ -37,8 +42,8 @@ function SpoolIllustration({ turns, active }: { turns: MotionValue<number>; acti
       target.style.backgroundSize = ""
       target.style.backgroundPosition = ""
     }
-  }, [turns, active])
-  return <span ref={element} className="spool-frames"><img src={spoolPoster} className="spool-poster" alt="" draggable={false} /></span>
+  }, [turns, active, process])
+  return <span ref={element} className="spool-frames"><img src={process ? processPoster : spoolPoster} className="spool-poster" alt="" draggable={false} /></span>
 }
 type FlightRoute = { d: string; contact: number; rebound: number }
 
@@ -75,7 +80,10 @@ export function HeroSpool({ active }: { active: boolean }) {
       // → a damped rebound → falling into the research-process canvas.
       const approach = `M 0 0 C 14 -11 46 0 51 13 C ${x * .42} 7 ${x - 36} ${y - 40} ${x} ${y}`
       const bounce = ` C ${x + 7} ${y - 25} ${x + 41} ${y - 54} ${x + 57} ${y - 29}`
-      const fall = ` C ${x + 113} ${y + 96} ${ex - 88} ${ey - 175} ${ex} ${ey}`
+      const gutter = end.left * .38 - a.left
+      const entry = end.top - a.top
+      const seam = process!.closest("section")!.getBoundingClientRect().top - a.top
+      const fall = ` C ${x + 110} ${y + 100} ${gutter} ${seam - 130} ${gutter} ${seam} L ${gutter} ${entry} Q ${gutter} ${ey - 12} ${ex} ${ey}`
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
       path.setAttribute("d", approach + bounce + fall)
       const total = path.getTotalLength()
@@ -107,6 +115,21 @@ export function HeroSpool({ active }: { active: boolean }) {
   useEffect(() => {
     if (!active || !route || reduced) return
     flight.set(0)
+    const guide = document.createElementNS("http://www.w3.org/2000/svg", "path")
+    guide.setAttribute("d", route.d)
+    const length = guide.getTotalLength()
+    const originY = anchor.current!.getBoundingClientRect().top + window.scrollY
+    const startScroll = window.scrollY
+    let following = true
+    const release = () => { following = false }
+    const inputs = ["wheel", "touchstart", "keydown"] as const
+    inputs.forEach(event => window.addEventListener(event, release, { passive: true }))
+    const unsubscribe = flight.on("change", value => {
+      if (!following) return
+      const point = guide.getPointAtLength(length * value)
+      const target = Math.max(startScroll, originY + point.y - innerHeight * .61)
+      window.scrollTo({ top: target, behavior: "instant" })
+    })
     const controls = animate(
       flight,
       [0, route.contact, route.rebound, 1],
@@ -116,7 +139,11 @@ export function HeroSpool({ active }: { active: boolean }) {
         ease: ["easeIn", "easeOut", "easeIn"],
       },
     )
-    return () => controls.stop()
+    return () => {
+      controls.stop()
+      unsubscribe()
+      inputs.forEach(event => window.removeEventListener(event, release))
+    }
   }, [active, route?.d, reduced, flight])
 
   return (
@@ -221,13 +248,13 @@ const words = [
 ]
 
 export function ThreadProcess({ active }: { active: boolean }) {
-  const section = useRef<HTMLElement>(null)
+  const canvas = useRef<HTMLDivElement>(null)
   const path = useRef<SVGPathElement>(null)
   const reduced = useReducedMotion()
   const positionX = useMotionValue("2.667%")
   const positionY = useMotionValue("51.316%")
   const progress = useMotionValue(0)
-  const { scrollYProgress } = useScroll({ target: section, offset: ["start 86%", "end 38%"] })
+  const { scrollYProgress } = useScroll({ target: canvas, offset: ["center 61%", "end 26%"] })
 
   useMotionValueEvent(scrollYProgress, "change", (value) => {
     progress.set(reduced ? 1 : active ? value : 0)
@@ -251,7 +278,7 @@ export function ThreadProcess({ active }: { active: boolean }) {
   }, [active, reduced, progress, scrollYProgress, positionX, positionY])
 
   return (
-    <section ref={section} id="design-process" aria-labelledby="process-heading" className="thread-process">
+    <section id="design-process" aria-labelledby="process-heading" className="thread-process">
       <div className="shell">
         <div className="process-topline">
           <span className="t-eyebrow text-neutral-500">The thread of reason / How I design</span>
@@ -261,23 +288,23 @@ export function ThreadProcess({ active }: { active: boolean }) {
           <h2 id="process-heading" className="t-h2 text-neutral-950">Making sense of the <em>mess.</em></h2>
           <p className="max-w-sm text-sm leading-relaxed text-neutral-600">Design rarely starts with a straight line. I explore, connect and refine until the right solution becomes clear.</p>
         </div>
-        <div className="process-canvas" aria-label="An illustration showing a tangled thread gradually becoming a straight line">
+        <div ref={canvas} className="process-canvas" aria-label="An illustration showing a tangled thread gradually becoming a straight line">
           <svg viewBox="0 0 1200 380" preserveAspectRatio="none" className="process-path">
             <path d={processPath} fill="none" stroke="#e7ddd1" strokeWidth="3.8" strokeLinecap="round"/>
             <motion.path ref={path} d={processPath} fill="none" stroke="#9a8065" strokeWidth="3.4"
               strokeLinecap="round" style={{ pathLength: progress }} />
           </svg>
-          <div className="process-spool" aria-hidden="true"
+          <motion.div className="process-spool" aria-hidden="true"
             style={{ left: positionX, top: positionY, transform: "translate(-50%, -50%)" }}>
-            <SpoolIllustration turns={progress} active={active && !reduced} />
-          </div>
+            <SpoolIllustration process turns={progress} active={active && !reduced} />
+          </motion.div>
           {words.map((word, i) => <div key={word.title} className="process-word" style={{ left: word.x }}>
             <span className="process-number">0{i + 1}</span>
             <strong>{word.title}</strong>
             <small>{word.sub}</small>
           </div>)}
         </div>
-        <div className="process-footer"><span>Exploration is part of the process.</span><a href="#work">See where it leads <span aria-hidden="true">↘</span></a></div>
+        <div className="process-footer"><span>Exploration is part of the process.</span><Link to="home" section="work">See where it leads <span aria-hidden="true">↘</span></Link></div>
       </div>
     </section>
   )
