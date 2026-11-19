@@ -21,8 +21,10 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout source
+      - name: Checkout source with full photographic assets
         uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -39,8 +41,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Verify original imagery and fonts
-        run: node scripts/check-portfolio-assets.mjs
+      - name: Verify original imagery, cotton film and fonts
+        run: |
+          git lfs pull
+          node scripts/check-portfolio-assets.mjs
+          node -e 'const fs=require("node:fs"); for (const n of ["cotton-studio.webp","cotton-studio-small.webp"]) { const b=fs.readFileSync("src/assets/"+n); if (b.toString("ascii",0,4)!=="RIFF" || b.toString("ascii",8,12)!=="WEBP") throw Error(n+" is not a decoded WebP"); }'
+
 
       - name: Build portfolio for GitHub Pages
         run: |

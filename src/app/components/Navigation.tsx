@@ -71,6 +71,7 @@ export function Navigation() {
         <div className="flex min-w-0 items-center gap-3">
           <Link
             to="home"
+            aria-label="Angel Agharia, home"
             className="group -ml-1 flex min-h-11 shrink-0 items-center gap-2.5 rounded-full py-1 pr-2 pl-1"
           >
             <Img
@@ -79,7 +80,7 @@ export function Navigation() {
               priority
               className="h-8 w-8 rounded-full object-cover ring-1 ring-black/10 transition-[box-shadow] duration-300 group-hover:ring-black/25"
             />
-            <span className="font-serif text-[1.0625rem] leading-none tracking-[-0.01em] text-neutral-950">
+            <span className="max-[399px]:hidden font-serif text-[1.0625rem] leading-none tracking-[-0.01em] text-neutral-950">
               Angel Agharia
             </span>
           </Link>
@@ -114,7 +115,7 @@ export function Navigation() {
               Work
             </NavLink>
           </li>
-          <li className="hidden min-[400px]:block">
+          <li>
             <NavLink to="home" section="about" active={inView === "about"}>
               About
             </NavLink>
@@ -123,7 +124,7 @@ export function Navigation() {
             <Link
               to={page}
               section="contact"
-              className="inline-flex min-h-10 items-center rounded-full bg-neutral-900 px-4 text-sm font-medium text-white transition-[background-color,transform] duration-200 ease-out-quint hover:bg-neutral-700 active:scale-[0.97]"
+              className="inline-flex min-h-11 items-center rounded-full bg-neutral-900 px-4 text-sm font-medium text-white transition-[background-color,transform] duration-200 ease-out-quint hover:bg-neutral-700 active:scale-[0.97]"
             >
               Contact
             </Link>

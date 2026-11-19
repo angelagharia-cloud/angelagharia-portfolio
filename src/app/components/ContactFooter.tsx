@@ -9,18 +9,21 @@ const LINKEDIN = "https://www.linkedin.com/in/angel-agharia"
 
 export function ContactFooter() {
   const [copied, setCopied] = useState(false)
+  const [copyFailed, setCopyFailed] = useState(false)
   const timer = useRef<number | undefined>(undefined)
 
   useEffect(() => () => window.clearTimeout(timer.current), [])
 
   const copyEmail = async () => {
+    setCopyFailed(false)
     try {
       await navigator.clipboard.writeText(EMAIL)
       setCopied(true)
       window.clearTimeout(timer.current)
       timer.current = window.setTimeout(() => setCopied(false), 2400)
     } catch {
-      window.location.href = `mailto:${EMAIL}`
+      setCopied(false)
+      setCopyFailed(true)
     }
   }
 
@@ -95,8 +98,8 @@ export function ContactFooter() {
                 </AnimatePresence>
                 {copied ? "Copied to clipboard" : "Copy email address"}
               </button>
-              <span role="status" aria-live="polite" className="sr-only">
-                {copied ? "Email address copied to clipboard" : ""}
+              <span role="status" aria-live="polite" className={copyFailed ? "mt-2 block text-sm text-white/85" : "sr-only"}>
+                {copyFailed ? "Select the email address above to copy it manually." : copied ? "Email address copied to clipboard" : ""}
               </span>
             </div>
 

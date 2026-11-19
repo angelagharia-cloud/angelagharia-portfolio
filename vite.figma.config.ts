@@ -5,6 +5,7 @@ import {
   type HtmlTagDescriptor,
   type Plugin,
   type UserConfig,
+  type UserConfigExport,
 } from 'vite'
 import path from 'node:path'
 import { readFileSync } from 'node:fs'
@@ -48,7 +49,7 @@ function loadAssetFilenameAliases(): Record<string, string> {
 }
 
 export default defineConfig(async (env) =>
-  mergeConfig(await resolveUserConfig(env), {
+  mergeConfig(await resolveUserConfig(userConfig, env), {
     resolve: {
       alias: Object.entries<string>(packageAliases).map(([find, replacement]) => ({
         find,
@@ -82,8 +83,8 @@ export default defineConfig(async (env) =>
   }),
 )
 
-async function resolveUserConfig(env: ConfigEnv): Promise<UserConfig> {
-  return typeof userConfig === 'function' ? await userConfig(env) : await userConfig
+async function resolveUserConfig(config: UserConfigExport, env: ConfigEnv): Promise<UserConfig> {
+  return typeof config === 'function' ? await config(env) : await config
 }
 
 function isProjectPath(value: unknown): value is string {

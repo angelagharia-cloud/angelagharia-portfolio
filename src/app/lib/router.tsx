@@ -26,7 +26,7 @@ export function useNav() {
 }
 
 export const hrefFor = (to: Page, section?: Section) =>
-  to === "home" ? (section ? `#/${section}` : "#/") : `#/${to}`
+  to === "home" ? (section ? `#/${section}` : "#/") : `#/${to}${section === "contact" ? "/contact" : ""}`
 
 export const isPlainClick = (event: MouseEvent<HTMLAnchorElement>) =>
   !event.defaultPrevented &&
