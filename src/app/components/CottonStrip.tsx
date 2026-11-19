@@ -6,12 +6,18 @@ const ns = "http://www.w3.org/2000/svg"
 
 export function CottonStrip({ curve, width = 4, step = 6, screenWidth = false }: { curve: string | MotionValue<string>; width?: number; step?: number; screenWidth?: boolean }) {
   const group = useRef<SVGGElement>(null)
+  const underside = useRef<SVGPathElement>(null)
+  const sheen = useRef<SVGPathElement>(null)
   const pattern = useId()
   useLayoutEffect(() => {
     const layer = group.current!
     const path = document.createElementNS(ns, "path")
     function paint(d: string) {
       path.setAttribute("d", d || "M0 0")
+      // The shadow and reflected cotton filaments share the exact centreline.
+      // They remain continuous even while textured segments are reprojected.
+      underside.current?.setAttribute("d", d || "M0 0")
+      sheen.current?.setAttribute("d", d || "M0 0")
       const length = path.getTotalLength()
       const matrix = screenWidth ? layer.getScreenCTM() : null
       const count = Math.ceil(length / step)
@@ -52,6 +58,12 @@ export function CottonStrip({ curve, width = 4, step = 6, screenWidth = false }:
     <defs><pattern id={pattern} patternUnits="userSpaceOnUse" width="256" height="64">
       <image href={cotton} width="256" height="64" />
     </pattern></defs>
+    <path ref={underside} fill="none" stroke="#65513e" strokeOpacity=".24"
+      strokeWidth={width + 1.1} strokeLinecap="round" strokeLinejoin="round"
+      vectorEffect={screenWidth ? "non-scaling-stroke" : undefined} />
     <g ref={group} fill={`url(#${pattern})`} />
+    <path ref={sheen} fill="none" stroke="#fff6e8" strokeOpacity=".48"
+      strokeWidth={Math.max(.5, width * .16)} strokeLinecap="round"
+      vectorEffect={screenWidth ? "non-scaling-stroke" : undefined} />
   </g>
 }
