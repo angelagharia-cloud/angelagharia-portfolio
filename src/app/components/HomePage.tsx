@@ -101,7 +101,7 @@ export function HomePage() {
     setThreadStarted(true)
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
     setArrived(reduced)
-    if (reduced) document.getElementById("design-process")?.scrollIntoView({ behavior: "instant" })
+    if (reduced) document.getElementById("design-process")?.scrollIntoView({ behavior: "auto" })
   }
   return (
     <>
