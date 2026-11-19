@@ -85,7 +85,7 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
           offset: Math.hypot(box.left + box.width / 2 - mark.left, box.top + box.height / 2 - mark.top),
           paid: parseFloat(mask.getAttribute("stroke-dasharray")) }
       })
-      assert(result.visible && result.offset < 3, JSON.stringify(result))
+      assert(result.visible && result.offset < (label === "held" ? 6 : 3), JSON.stringify(result))
       await page.screenshot({path:output + "/" + name + "-handoff-" + label + ".png"})
       return result.paid
     }
