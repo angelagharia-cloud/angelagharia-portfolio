@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useState, type ReactNode } from "react"
 import { motion } from "motion/react"
 import { ArrowDown, ArrowRight } from "lucide-react"
 import { Link } from "../lib/router"
@@ -12,7 +12,9 @@ import { SectionLabel } from "./system/SectionLabel"
 import { ProjectCover } from "./covers"
 
 import { PortraitReveal } from "./PortraitReveal"
-import { SeasonalHeroAccents } from "./SeasonalHeroAccents"
+import muslin from "../../assets/muslin-floor.webp"
+import muslinSmall from "../../assets/muslin-floor-small.webp"
+
 import { HeroSpool, ProjectThread, ThreadProcess } from "./ThreadJourney"
 
 const CREDENTIALS = [
@@ -67,29 +69,45 @@ const SKILLS = [
 
 export function HomePage() {
   const [threadStarted, setThreadStarted] = useState(false)
-  const followTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  useEffect(() => () => {
-    if (followTimer.current) clearTimeout(followTimer.current)
-  }, [])
-
+  const [arrived, setArrived] = useState(false)
+  const onArrival = useCallback(() => setArrived(true), [])
+  const [take, setTake] = useState(0)
+  useEffect(() => {
+    const leave = () => {
+      if (!threadStarted || arrived) return
+      setThreadStarted(false)
+      setArrived(true)
+    }
+    window.addEventListener("portfolio:navigate", leave)
+    return () => window.removeEventListener("portfolio:navigate", leave)
+  }, [threadStarted, arrived])
+  useEffect(() => {
+    if (threadStarted || arrived) return
+    const section = document.querySelector(".process-canvas")
+    if (!section) return
+    let inView = false
+    const activate = () => { if (inView && window.scrollY > 0) setArrived(true) }
+    const observer = new IntersectionObserver(([entry]) => {
+      inView = entry.isIntersecting
+      activate()
+    }, { threshold: .35 })
+    observer.observe(section)
+    window.addEventListener("scroll", activate, { passive: true })
+    return () => { observer.disconnect(); window.removeEventListener("scroll", activate) }
+  }, [threadStarted, arrived])
   const followThread = () => {
-    if (followTimer.current) clearTimeout(followTimer.current)
-    if (!threadStarted) setThreadStarted(true)
+    if (threadStarted && !arrived) return
+    setTake(previous => previous + 1)
+    setThreadStarted(true)
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    followTimer.current = setTimeout(() => {
-      document.getElementById("design-process")?.scrollIntoView({
-        behavior: reduced ? "instant" : "smooth",
-        block: "start",
-      })
-    }, threadStarted || reduced ? 0 : 1480)
+    setArrived(reduced)
+    if (reduced) document.getElementById("design-process")?.scrollIntoView({ behavior: "auto" })
   }
-
   return (
     <>
-      <div className="thread-story"><ProjectThread active={threadStarted} />
-      <Hero threadStarted={threadStarted} onFollowThread={followThread} />
-      <ThreadProcess active={threadStarted} />
+      <div className="thread-story"><ProjectThread active={arrived} />
+      <Hero take={take} arrived={arrived} threadStarted={threadStarted} onFollowThread={followThread} onArrival={onArrival} />
+      <ThreadProcess key={take} active={arrived} fromHero={threadStarted} />
       <Highlights />
       <SelectedWork /></div>
       <About />
@@ -129,27 +147,35 @@ function MaskLine({
   )
 }
 
-function Hero({ threadStarted, onFollowThread }: { threadStarted: boolean; onFollowThread: () => void }) {
+function Hero({ take, arrived, threadStarted, onFollowThread, onArrival }: { take: number; arrived: boolean; threadStarted: boolean; onFollowThread: () => void; onArrival: () => void }) {
   return (
     <section className="relative isolate pt-10 lg:pt-12">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(56rem_36rem_at_12%_42%,rgba(59,130,246,0.06),transparent_62%),radial-gradient(46rem_34rem_at_88%_18%,rgba(214,196,164,0.14),transparent_60%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(56rem_36rem_at_12%_42%,rgba(40,85,216,0.045),transparent_62%),radial-gradient(46rem_34rem_at_88%_18%,rgba(165,139,108,0.11),transparent_60%)]"
       />
-      <SeasonalHeroAccents />
-      <div className="relative z-10 shell grid items-end gap-x-6 gap-y-7 pt-12 sm:pt-16 lg:min-h-[calc(100svh_-_4rem)] lg:grid-cols-12 lg:pt-12">
-        <div className="relative z-20 lg:col-span-6 lg:self-center lg:pb-12">
+
+      <div className="hero-composition relative z-10 shell grid items-end gap-x-6 gap-y-7 pt-12 sm:pt-16 lg:min-h-[calc(100svh_-_4rem)] lg:grid-cols-12 lg:pt-12">
+        <div className="hero-copy relative z-20 lg:col-span-6 lg:self-center lg:pb-12">
           <motion.p {...intro(0)} className="t-eyebrow text-neutral-500">
             UX/UI &amp; Product Designer
           </motion.p>
 
-          <h1 className="t-display mt-6 text-neutral-950">
+          <h1 aria-label="Angel Agharia" className="t-display mt-6 text-neutral-950">
             <MaskLine delay={0.08}>Angel</MaskLine>
             <span className="hero-name-with-thread">
-              <MaskLine delay={0.18} className="italic text-[#85858d]">
-                Agharia
+              <MaskLine delay={0.18} className="italic text-[#2855D8]">
+                Aghari<span className="release-letter">a</span><i className="type-baseline" aria-hidden="true" />
               </MaskLine>
-              <HeroSpool active={threadStarted} />
+              <HeroSpool key={take} active={threadStarted} onArrival={onArrival} />
+              <button type="button" className="spool-trigger" onClick={onFollowThread}
+                aria-label={arrived && threadStarted ? "Replay the thread" : "Follow the thread — press the spool"}
+                data-replay={arrived && threadStarted} disabled={threadStarted && !arrived}>
+                <span className="spool-callout">
+                  <svg viewBox="0 0 42 22" fill="none" aria-hidden="true"><path d="M41 2C17 0 22 17 3 18m4-4-5 4 6 2" /></svg>
+                  {arrived && threadStarted ? "Replay" : "Press the spool"}
+                </span>
+              </button>
             </span>
           </h1>
 
@@ -160,6 +186,15 @@ function Hero({ threadStarted, onFollowThread }: { threadStarted: boolean; onFol
             I design clear, considered digital products, using research to
             frame the problem and prototyping to get the details right.
           </motion.p>
+
+          <motion.div
+            {...intro(0.42)}
+            className="hero-actions mt-7 flex flex-wrap items-center gap-3"
+          >
+            <Link to="home" section="work" className="work-shortcut">
+              Selected work <ArrowDown aria-hidden="true" size={14} />
+            </Link>
+          </motion.div>
 
           <motion.dl
             {...intro(0.48)}
@@ -180,31 +215,19 @@ function Hero({ threadStarted, onFollowThread }: { threadStarted: boolean; onFol
             ))}
           </motion.dl>
 
-          <motion.div
-            {...intro(0.58)}
-            className="mt-9 flex flex-wrap items-center gap-3"
-          >
-            <Link to="home" section="work" className={btn.primary}>
-              View selected work
-              <ArrowDown
-                className="h-4 w-4 transition-transform duration-300 ease-out-quint group-hover:translate-y-0.5"
-                strokeWidth={1.75}
-              />
-            </Link>
-            <button type="button" onClick={onFollowThread} className={btn.secondary}>
-              Follow the thread
-              <ArrowDown className="h-4 w-4" aria-hidden="true" strokeWidth={1.75} />
-            </button>
-          </motion.div>
         </div>
 
         <motion.div
           initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1.1, ease: EASE_OUT, delay: 0.12 }}
-          className="relative mx-auto w-full max-w-[22rem] sm:max-w-[27rem] lg:col-span-6 lg:max-w-none"
+          className="hero-subject relative mx-auto w-full max-w-[22rem] sm:max-w-[27rem] lg:col-span-6 lg:max-w-none"
         >
-          <PortraitReveal />
+          <picture className="textile-floor" aria-hidden="true">
+            <source media="(max-width:1023px)" srcSet={muslinSmall} />
+            <img src={muslin} width={1600} height={900} alt="" decoding="async" />
+          </picture>
+          <PortraitReveal inFlight={threadStarted && !arrived} />
         </motion.div>
       </div>
     </section>
@@ -275,10 +298,10 @@ function SelectedWork() {
         </div>
 
         <div className="mt-14 grid gap-6 lg:mt-16 lg:gap-8">
-          <Reveal>
+          <Reveal y={0}>
             <CreativeKeyFeature />
           </Reveal>
-          <Reveal>
+          <Reveal y={0}>
             <GravitadFeature />
           </Reveal>
           <div className="grid gap-6 md:grid-cols-2 lg:gap-8">
@@ -304,7 +327,7 @@ function CreativeKeyFeature() {
   const project = PROJECT_MAP["creative-key"]
   return (
     <article
-      className={`on-dark group relative grid overflow-hidden rounded-3xl bg-[#0b0f1a] text-white ring-1 ring-white/[0.06] transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_32px_80px_-32px_rgba(8,145,178,0.55)] lg:grid-cols-12 ${focusRing}`}
+      data-cotton-corner="creative-key" className={`on-dark group relative grid overflow-hidden rounded-3xl bg-[#0b0f1a] text-white ring-1 ring-white/[0.06] transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_32px_80px_-32px_rgba(8,145,178,0.55)] lg:grid-cols-12 ${focusRing}`}
     >
       <div className="flex flex-col p-7 sm:p-10 lg:col-span-5 lg:p-12 xl:p-14">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -366,7 +389,7 @@ function GravitadFeature() {
   const project = PROJECT_MAP.gravitad
   return (
     <article
-      className={`group relative grid overflow-hidden rounded-3xl bg-[#eaf3ff] ring-1 ring-[#c9ddf6] transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_32px_80px_-36px_rgba(5,92,191,0.45)] lg:grid-cols-12 ${focusRing}`}
+      data-cotton-corner="gravitad" className={`group relative grid overflow-hidden rounded-3xl bg-[#eaf3ff] ring-1 ring-[#c9ddf6] transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_32px_80px_-36px_rgba(5,92,191,0.45)] lg:grid-cols-12 ${focusRing}`}
     >
       <div className="flex flex-col p-7 sm:p-10 lg:col-span-5 lg:p-12 xl:p-14">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -415,9 +438,9 @@ function GravitadFeature() {
 function ProjectCard({ id, delay }: { id: ProjectId; delay: number }) {
   const project = PROJECT_MAP[id]
   return (
-    <Reveal delay={delay} className="h-full">
+    <Reveal delay={delay} y={id === "stammer-halo" ? 0 : undefined} className="h-full">
       <article
-        className={`group relative flex h-full flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-neutral-200/90 transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_28px_60px_-30px_rgba(15,23,42,0.3)] hover:ring-neutral-300 ${focusRing}`}
+        data-cotton-corner={id === "stammer-halo" ? id : undefined} className={`group relative flex h-full flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-neutral-200/90 transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_28px_60px_-30px_rgba(15,23,42,0.3)] hover:ring-neutral-300 ${focusRing}`}
       >
         <div className="relative aspect-[4/3] overflow-hidden" style={{ backgroundColor: project.tint }}>
           <ProjectCover id={id} />
@@ -522,4 +545,3 @@ function Toolkit() {
     </section>
   )
 }
-
