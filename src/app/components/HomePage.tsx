@@ -92,7 +92,7 @@ export function HomePage() {
     <>
       <div className="thread-story"><ProjectThread active={arrived} />
       <Hero take={take} arrived={arrived} threadStarted={threadStarted} onFollowThread={followThread} onArrival={onArrival} />
-      <ThreadProcess key={take} active={arrived} />
+      <ThreadProcess key={take} active={arrived} fromHero={threadStarted} />
       <Highlights />
       <SelectedWork /></div>
       <About />
@@ -146,13 +146,21 @@ function Hero({ take, arrived, threadStarted, onFollowThread, onArrival }: { tak
             UX/UI &amp; Product Designer
           </motion.p>
 
-          <h1 className="t-display mt-6 text-neutral-950">
+          <h1 aria-label="Angel Agharia" className="t-display mt-6 text-neutral-950">
             <MaskLine delay={0.08}>Angel</MaskLine>
             <span className="hero-name-with-thread">
               <MaskLine delay={0.18} className="italic text-[#2855D8]">
-                Agharia
+                Aghari<span className="release-letter">a</span>
               </MaskLine>
               <HeroSpool key={take} active={threadStarted} onArrival={onArrival} />
+              <button type="button" className="spool-trigger" onClick={onFollowThread}
+                aria-label={arrived && threadStarted ? "Replay the thread" : "Follow the thread — press the spool"}
+                data-replay={arrived && threadStarted} disabled={threadStarted && !arrived}>
+                <span className="spool-callout">
+                  <svg viewBox="0 0 42 22" fill="none" aria-hidden="true"><path d="M41 2C17 0 22 17 3 18m4-4-5 4 6 2" /></svg>
+                  {arrived && threadStarted ? "Replay" : "Press the spool"}
+                </span>
+              </button>
             </span>
           </h1>
 
@@ -187,10 +195,6 @@ function Hero({ take, arrived, threadStarted, onFollowThread, onArrival }: { tak
             {...intro(0.58)}
             className="hero-actions mt-9 flex flex-wrap items-center gap-3"
           >
-            <button type="button" onClick={onFollowThread} aria-disabled={threadStarted && !arrived} className={`${btn.primary} thread-primary-cta`}>
-              {arrived && threadStarted ? "Replay the thread" : "Follow the thread"}
-              <ArrowDown className="h-4 w-4" aria-hidden="true" strokeWidth={1.75} />
-            </button>
             <Link to="home" section="work" className="work-shortcut">
               Selected work <ArrowDown aria-hidden="true" size={14} />
             </Link>
@@ -203,7 +207,7 @@ function Hero({ take, arrived, threadStarted, onFollowThread, onArrival }: { tak
           transition={{ duration: 1.1, ease: EASE_OUT, delay: 0.12 }}
           className="hero-subject relative mx-auto w-full max-w-[22rem] sm:max-w-[27rem] lg:col-span-6 lg:max-w-none"
         >
-          <PortraitReveal threadImpact={threadStarted} />
+          <PortraitReveal inFlight={threadStarted && !arrived} />
         </motion.div>
       </div>
     </section>
@@ -274,10 +278,10 @@ function SelectedWork() {
         </div>
 
         <div className="mt-14 grid gap-6 lg:mt-16 lg:gap-8">
-          <Reveal>
+          <Reveal y={0}>
             <CreativeKeyFeature />
           </Reveal>
-          <Reveal>
+          <Reveal y={0}>
             <GravitadFeature />
           </Reveal>
           <div className="grid gap-6 md:grid-cols-2 lg:gap-8">
@@ -303,7 +307,7 @@ function CreativeKeyFeature() {
   const project = PROJECT_MAP["creative-key"]
   return (
     <article
-      className={`on-dark group relative grid overflow-hidden rounded-3xl bg-[#0b0f1a] text-white ring-1 ring-white/[0.06] transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_32px_80px_-32px_rgba(8,145,178,0.55)] lg:grid-cols-12 ${focusRing}`}
+      data-cotton-corner="creative-key" className={`on-dark group relative grid overflow-hidden rounded-3xl bg-[#0b0f1a] text-white ring-1 ring-white/[0.06] transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_32px_80px_-32px_rgba(8,145,178,0.55)] lg:grid-cols-12 ${focusRing}`}
     >
       <div className="flex flex-col p-7 sm:p-10 lg:col-span-5 lg:p-12 xl:p-14">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -365,7 +369,7 @@ function GravitadFeature() {
   const project = PROJECT_MAP.gravitad
   return (
     <article
-      className={`group relative grid overflow-hidden rounded-3xl bg-[#eaf3ff] ring-1 ring-[#c9ddf6] transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_32px_80px_-36px_rgba(5,92,191,0.45)] lg:grid-cols-12 ${focusRing}`}
+      data-cotton-corner="gravitad" className={`group relative grid overflow-hidden rounded-3xl bg-[#eaf3ff] ring-1 ring-[#c9ddf6] transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_32px_80px_-36px_rgba(5,92,191,0.45)] lg:grid-cols-12 ${focusRing}`}
     >
       <div className="flex flex-col p-7 sm:p-10 lg:col-span-5 lg:p-12 xl:p-14">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
@@ -414,9 +418,9 @@ function GravitadFeature() {
 function ProjectCard({ id, delay }: { id: ProjectId; delay: number }) {
   const project = PROJECT_MAP[id]
   return (
-    <Reveal delay={delay} className="h-full">
+    <Reveal delay={delay} y={id === "stammer-halo" ? 0 : undefined} className="h-full">
       <article
-        className={`group relative flex h-full flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-neutral-200/90 transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_28px_60px_-30px_rgba(15,23,42,0.3)] hover:ring-neutral-300 ${focusRing}`}
+        data-cotton-corner={id === "stammer-halo" ? id : undefined} className={`group relative flex h-full flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-neutral-200/90 transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_28px_60px_-30px_rgba(15,23,42,0.3)] hover:ring-neutral-300 ${focusRing}`}
       >
         <div className="relative aspect-[4/3] overflow-hidden" style={{ backgroundColor: project.tint }}>
           <ProjectCover id={id} />

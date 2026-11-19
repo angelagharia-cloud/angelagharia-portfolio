@@ -15,6 +15,9 @@ type Catch = {
   x: number
   y: number
   width: number
+  inletX: number
+  inletY: number
+  card: HTMLElement
   angle: number
   path: string
   start: number
@@ -35,7 +38,44 @@ function CornerCatch({
     const i = Math.round(n)
     return `${((i % 8) * 100) / 7}% ${Math.floor(i / 8) * 20}%`
   })
+  const wrap = useTransform(frame, [22, 44], [0, 1])
   const opacity = useTransform(frame, (n) => Math.min(1, n))
+  const tension = useTransform(frame, [0, 12, 33, 42, 47], [0, 0, .76, 1, .87])
+  const pullX = useTransform(tension, n => -6 * n)
+  const pullY = useTransform(tension, n => 5 * n)
+  const radians = shot.angle * Math.PI / 180
+  const wrapPath = useTransform(tension, load => {
+    // The filmed loop returns to pixel (198,86) of its 384 × 288 cell.
+    // Lead the same fibre around the fold and out along the right edge.
+    const knotX = x + width * (-.004 * Math.cos(radians) + .076 * Math.sin(radians)) - 6 * load
+    const knotY = y + width * (-.004 * Math.sin(radians) - .076 * Math.cos(radians)) + 5 * load
+    return `M ${knotX} ${knotY} C ${knotX-2} ${knotY+8}, ${x+1-8*load} ${y+14}, ${x+4} ${y+35}`
+  })
+  const tipX = useTransform(pullX, dx => shot.inletX + dx)
+  const tipY = useTransform(pullY, dy => shot.inletY + dy)
+  useEffect(() => {
+    const card = shot.card
+    const w = card.offsetWidth, h = card.offsetHeight
+    function squeeze(load: number) {
+      if (load <= .001) {
+        card.style.removeProperty("clip-path")
+        card.style.removeProperty("--cotton-load")
+        return
+      }
+      // Only the upper-right seam gives under tension. A pair of cubic
+      // curves forms a shallow waist around the loaded strand.
+      const notch = 13 * load
+      const edge = "M -100 -100 H " + (w-44) + " V 0 C " +
+        [w-24, 0, w-12-notch*.6, 3+notch*.5, w-9-notch*.55, 8+notch*.72].join(" ") +
+        " C " + [w-5-notch, 15+notch, w, 22+notch*.55, w, 42].join(" ") +
+        " H " + (w+100) + " V " + (h+100) + " H -100 Z"
+      card.style.clipPath = 'path("' + edge + '")'
+      card.style.setProperty("--cotton-load", String(load))
+    }
+    squeeze(tension.get())
+    const unsubscribe = tension.on("change", squeeze)
+    return () => { unsubscribe(); squeeze(0) }
+  }, [shot, tension])
   return (
     <>
       <mask
@@ -55,7 +95,7 @@ function CornerCatch({
         />
       </mask>
       <g mask={`url(#catch-line-${id})`}>
-        <CottonStrip curve={path} step={16} />
+        <CottonStrip curve={path} width={3.2} step={12} />
       </g>
       <mask
         id={`behind-edge-${id}`}
@@ -74,7 +114,10 @@ function CornerCatch({
         />
         <ellipse cx={x - 2} cy={y + 2} rx="3" ry="1.75" fill="black" />
       </mask>
-      <g mask={`url(#behind-edge-${id})`}>
+      <motion.path d={wrapPath} fill="none" stroke="#78664f" strokeWidth="1.8" strokeLinecap="round" style={{ pathLength: wrap, opacity: wrap }} />
+      <motion.path d={wrapPath} fill="none" stroke="#d8c8a9" strokeWidth=".8" strokeLinecap="round" style={{ pathLength: wrap, opacity: wrap }} />
+      <motion.line x1={shot.inletX} y1={shot.inletY} x2={tipX} y2={tipY} stroke="#ac987c" strokeWidth="1.5" strokeLinecap="round" style={{ opacity }} />
+      <motion.g style={{ x: pullX, y: pullY }} mask={`url(#behind-edge-${id})`}>
         <g transform={`translate(${x} ${y}) rotate(${shot.angle})`}>
           <foreignObject
             x={-width * 0.52}
@@ -93,7 +136,7 @@ function CornerCatch({
             />
           </foreignObject>
         </g>
-      </g>
+      </motion.g>
     </>
   )
 }
@@ -160,10 +203,18 @@ export function ProjectThread({ active }: { active: boolean }) {
         // Let the long free span hang under tension and approach each loop
         // with a tangent. The outer margin keeps it clear of case-study copy.
         const reach = inletY - py
-        const path = `M ${px} ${py}
+        const sharedRow = angle === 30
+        const gutterY = y - 22
+        const path = sharedRow
+          ? `M ${px} ${py} Q ${rail} ${py+10} ${rail} ${py+30} L ${rail} ${gutterY-15}
+             Q ${rail} ${gutterY} ${rail-24} ${gutterY} C ${rail-80} ${gutterY} ${inletX+32} ${gutterY-4} ${inletX} ${inletY}`
+          : `M ${px} ${py}
           C ${px + (rail - px) * .8} ${py + 5}, ${rail} ${py + reach * .12}, ${rail} ${py + reach * .35}
           S ${rail + 3} ${inletY - 44}, ${inletX} ${inletY}`
         result.push({
+          inletX,
+          inletY,
+          card,
           id: projects[i],
           x,
           y,
@@ -173,8 +224,8 @@ export function ProjectThread({ active }: { active: boolean }) {
           start: py,
           arrival: inletY,
         })
-        px = x + 5
-        py = y + 16
+        px = x + 4
+        py = y + 35
       })
       setShots(result)
       update()

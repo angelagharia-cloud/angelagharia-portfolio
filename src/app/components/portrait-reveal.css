@@ -1,56 +1,39 @@
-@property --portrait-position {
-  syntax: "<number>";
-  inherits: true;
-  initial-value: 0;
-}
-
-.portrait-stage {
-  --portrait-position: 0;
-  --edge: calc(50% + var(--portrait-position) * 34%);
-  overflow: clip;
-  container-type: inline-size;
-  transition: --portrait-position 560ms cubic-bezier(.45, 0, .25, 1);
-}
-.portrait-stage[data-side="1"] { --portrait-position: 1; }
-.portrait-stage[data-side="-1"] { --portrait-position: -1; }
+.portrait-stage { position: relative; overflow: clip; container-type: inline-size; }
 .portrait-figure {
-  position: absolute;
-  bottom: 0;
-  left: var(--edge);
-  height: 100%;
-  pointer-events: none;
-  transform-origin: center bottom;
-  transform: translateX(-50%) rotate(calc(var(--portrait-position) * 2.5deg)) scale(calc(1 - var(--portrait-position) * var(--portrait-position) * .17));
+  position:absolute; bottom:0; left:50%; height:100%; pointer-events:none;
+  transform-origin:center bottom; transform:translateX(-50%);
+  transition: left 550ms cubic-bezier(.22,.78,.2,1), transform 550ms cubic-bezier(.22,.78,.2,1);
 }
-.portrait-note { position: absolute; inset: 0; z-index: 2; }
-.portrait-note[data-direction="1"] { clip-path: inset(0 calc(100% - var(--edge)) 0 0); }
-.portrait-note[data-direction="-1"] { clip-path: inset(0 0 0 var(--edge)); }
-.portrait-copy {
-  position: absolute;
-  top: 56%;
-  transform: translateY(-50%);
-  width: 47%;
-  font: 400 clamp(1rem, 5.8cqw, 2rem)/1.17 "DM Serif Display", Georgia, serif;
-  color: #282334;
-  text-shadow: 0 1px 15px rgba(255,255,255,.7);
+.portrait-stage[data-side="1"] .portrait-figure { left:70%; transform:translateX(-50%) rotate(1.2deg) scale(.96); }
+.portrait-photo { filter:drop-shadow(0 2px 2px rgb(60 47 32 / .09)); }
+.portrait-figure::before {
+  content:""; position:absolute; left:22%; right:13%; bottom:0; height:2.5%; z-index:-1;
+  background:radial-gradient(ellipse,rgb(69 53 33 / .2),transparent 69%);
 }
-.portrait-note[data-direction="1"] .portrait-copy { left: 13%; }
-.portrait-note[data-direction="-1"] .portrait-copy { right: 13%; }
-.portrait-copy a { font-family: Inter, sans-serif; }
-@media (prefers-reduced-motion: reduce) {
-  .portrait-stage { transition: none; }
+.portrait-note { position:absolute; left:3%; top:53%; transform:translateY(-50%); width:43%; z-index:2; }
+.portrait-copy { color:#282520; }
+.portrait-count { display:block; color:#2855d8; font:600 .7rem/1.4 Inter,sans-serif; letter-spacing:.13em; margin-bottom:.65rem; }
+.portrait-copy p { font:400 clamp(1.25rem,4.35cqw,1.8rem)/1.18 "DM Serif Display",Georgia,serif; letter-spacing:-.025em; text-wrap:pretty; }
+.portrait-copy a { color:#2348b9; }
+.portrait-controls { display:flex; align-items:center; justify-content:center; gap:.1rem; min-height:3.5rem; }
+.portrait-controls button { white-space:nowrap; }
+.portrait-controls button:disabled { opacity:.55; }
+.portrait-mobile-note { display:none; }
+@media(max-width:1023px) {
+  .portrait-stage[data-side="1"] .portrait-figure { left:54%; transform:translateX(-50%) rotate(1deg) scale(.98); }
+  .portrait-note { display:none; }
+  .portrait-mobile-note { position:relative; display:grid; grid-template-rows:0fr; width:160%; margin-left:-60%; transition:grid-template-rows .4s ease; }
+  .portrait-mobile-note[data-open="true"] { grid-template-rows:1fr; }
+  .portrait-mobile-note > div { overflow:hidden; }
+  .portrait-mobile-note .portrait-copy { margin:.8rem 0 .2rem; border-top:1px solid #d5ccbd; padding:1rem .25rem .6rem; }
+  .portrait-copy p { font-size:clamp(1.16rem,4.5vw,1.55rem); }
+  .portrait-controls { flex-wrap:wrap; }
+  .portrait-controls button { padding-inline:.42rem; }
 }
-
-
-.portrait-photo { filter: drop-shadow(1px 4px 5px rgb(69 51 32 / .10)); }
-@media (prefers-reduced-motion: no-preference) {
-  .portrait-figure[data-impact="true"] .portrait-photo {
-    transform-origin: 50% 95%;
-    animation: shoulder-settle 360ms 1550ms both;
-  }
-  @keyframes shoulder-settle {
-    0%, 100% { transform: rotate(0); }
-    23% { transform: rotate(.32deg); }
-    62% { transform: rotate(-.09deg); }
-  }
+@media(prefers-reduced-motion:no-preference) {
+  .portrait-copy { animation:fact-arrive .38s cubic-bezier(.2,.75,.2,1) both; }
+  @keyframes fact-arrive { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+}
+@media(prefers-reduced-motion:reduce) {
+  .portrait-figure,.portrait-mobile-note { transition:none; }
 }
