@@ -322,13 +322,14 @@
   @keyframes stage-caption-in { from { opacity: .2; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
 }
 @media (max-width:640px) {
-  .process-canvas { --loop-depth: .53; }
+  .process-canvas { --loop-depth: .66; --thread-entry-y: 51.5842%; }
   .process-path { transform: scaleY(var(--loop-depth)); transform-origin: 50% 52.1053%; }
   .process-question p { max-width: none; }
 }
 
 .release-letter { display: inline-block; transform: translateY(var(--letter-load, 0px)); }
-.process-canvas > .landing-entry { top: calc(52.1053% - .7895% * var(--loop-depth, 1)); width: 0; height: 0; }
+/* Align the landing impact with the SVG's first point on every screen size. */
+.process-canvas > .landing-entry { top: var(--thread-entry-y, 51.3158%); width: 0; height: 0; }
 .process-spool.resting-bobbin {
   width: calc(var(--take-width) * .208333);
   aspect-ratio: 256 / 216;
