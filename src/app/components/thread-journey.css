@@ -213,3 +213,25 @@
   }
 }
 .spool-origin.flight-landed .flight-spool { visibility: hidden; }
+.hero-name-with-thread > span:first-child {
+  transform-origin: left top;
+  transform: rotate(var(--surname-tilt, 0deg));
+}
+.hero-name-with-thread .spool-origin { right: 16%; top: 4%; }
+.flight-spool::after {
+  content: "";
+  position: absolute;
+  bottom: 9%;
+  left: 28%;
+  width: 38%;
+  height: 5%;
+  background: radial-gradient(ellipse, rgb(63 43 21 / .31), transparent 70%);
+  opacity: var(--rim-shadow, 1);
+}
+@media (min-width: 1024px) {
+  .thread-story .portrait-figure { height: 83%; }
+}
+.flight-spool .spool-frames[style*="background-image"] .spool-poster {
+  visibility: visible;
+  opacity: var(--poster-opacity, 1);
+}

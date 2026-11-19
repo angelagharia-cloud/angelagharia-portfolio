@@ -46,7 +46,7 @@
 @media (prefers-reduced-motion: no-preference) {
   .portrait-figure[data-impact="true"] .portrait-photo {
     transform-origin: 50% 95%;
-    animation: shoulder-settle 360ms 931ms both;
+    animation: shoulder-settle 360ms 1550ms both;
   }
   @keyframes shoulder-settle {
     0%, 100% { transform: rotate(0); }

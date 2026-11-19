@@ -4,7 +4,7 @@ import { animate, type MotionValue, motion, useMotionValue, useMotionValueEvent,
 import { Link } from "../lib/router"
 import "./thread-journey.css"
 
-import spoolPoster from "../../assets/cotton-poster.webp"
+import spoolPoster from "../../imports/opt/hero-spool-detail.webp"
 import spoolFrames from "../../assets/cotton-turntable.webp"
 
 import processPoster from "../../assets/process-bobbin.webp"
@@ -22,6 +22,7 @@ function SpoolIllustration({ turns, active, process = false }: { turns: MotionVa
     let cancelled = false
     let unsubscribe: (() => void) | undefined
     function draw(turn: number) {
+      if (!process) target!.style.setProperty("--poster-opacity", String(Math.max(0, 1 - turn * 8)))
       const index = Math.floor(((turn % 1 + 1) % 1) * frameCount)
       const col = index % columns
       const row = Math.floor(index / columns)
@@ -46,7 +47,7 @@ function SpoolIllustration({ turns, active, process = false }: { turns: MotionVa
   }, [turns, active, process])
   return <span ref={element} className="spool-frames"><img src={process ? processPoster : spoolPoster} className="spool-poster" alt="" draggable={false} /></span>
 }
-type FlightRoute = { d: string; contact: number; rebound: number }
+type FlightRoute = { d: string; release: number; radius: number; contact: number; rebound: number }
 
 /**
  * The line and the photographed spool share ONE motion value so the cotton
@@ -59,7 +60,7 @@ export function HeroSpool({ active }: { active: boolean }) {
   const laid = useMotionValue(0)
   const looseEnd = useMotionValue("M0 0")
   const distance = useTransform(flight, value => `${value * 100}%`)
-  const turns = useTransform(flight, value => value * 2.6)
+  const turns = useMotionValue(0)
   const reduced = useReducedMotion()
 
   useEffect(() => {
@@ -84,9 +85,25 @@ export function HeroSpool({ active }: { active: boolean }) {
       // → a damped rebound → falling into the research-process canvas.
       const stacked = window.matchMedia("(max-width: 1023px)").matches
       const rail = document.documentElement.clientWidth - a.left - 13
-      const approach = stacked
-        ? `M 0 0 C 18 -6 ${rail} 2 ${rail} 90 C ${rail} ${y * .68} ${rail} ${y - p.height * .34} ${x - 52} ${y - 62} Q ${x - 43} ${y - 32} ${x} ${y}`
-        : `M 0 0 C 14 -11 46 0 51 13 C ${x * .42} 7 ${x - 36} ${y - 40} ${x} ${y}`
+      const word = origin!.parentElement!.getBoundingClientRect()
+      const run = word.right - a.left - diameter * .05
+      const pivot = a.left - word.left
+      const angle = Math.PI / 45
+      let roll = "M 0 0"
+      let rx = 0, ry = 0
+      for (let i = 1; i <= 24; i++) {
+        const t = i / 24
+        const ease = Math.min(1, t / (.55 / .85))
+        const tilt = angle * ease * ease * (3 - 2 * ease)
+        const along = pivot + run * t * t
+        rx = along * Math.cos(tilt) - pivot
+        ry = along * Math.sin(tilt)
+        roll += ` L ${rx} ${ry}`
+      }
+      const lead = Math.max(12, Math.min(130, (x - rx) * .32))
+      const approach = roll + (stacked
+        ? ` C ${rx + lead} ${ry + lead * Math.tan(angle)} ${rail} ${ry + 45} ${rail} ${ry + 110} C ${rail} ${y * .68} ${rail} ${y - p.height * .34} ${x - 52} ${y - 62} Q ${x - 43} ${y - 32} ${x} ${y}`
+        : ` C ${rx + lead} ${ry + lead * Math.tan(angle)} ${x - lead} ${Math.max(ry, y - 36)} ${x} ${y}`)
       const bounce = ` C ${x - 9} ${y - 15} ${x - 29} ${y - 24} ${x - 35} ${y - 15}`
       const gutter = end.left * .38 - a.left
       const entry = end.top - a.top
@@ -95,12 +112,14 @@ export function HeroSpool({ active }: { active: boolean }) {
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
       path.setAttribute("d", approach + bounce + fall)
       const total = path.getTotalLength()
+      path.setAttribute("d", roll)
+      const release = path.getTotalLength() / total
       path.setAttribute("d", approach)
       const contact = path.getTotalLength() / total
       path.setAttribute("d", approach + bounce)
       const rebound = path.getTotalLength() / total
       if (Number.isFinite(total) && total > 0) {
-        setRoute({ d: approach + bounce + fall, contact, rebound })
+        setRoute({ d: approach + bounce + fall, release, radius: diameter * .34, contact, rebound })
       }
     }
     function schedule() {
@@ -153,17 +172,36 @@ export function HeroSpool({ active }: { active: boolean }) {
       const target = Math.max(startScroll, originY + point.y - innerHeight * .61)
       window.scrollTo({ top: target, behavior: "instant" })
     })
+    const word = anchor.current!.parentElement!
     const controls = animate(
-      flight,
-      [0, route.contact, route.rebound, 1],
-      {
-        times: [0, .49, .66, 1],
-        duration: 1.9,
-        ease: ["easeIn", "easeOut", "easeIn"],
+      0, 2.4, {
+        duration: 2.4, ease: "linear",
+        onUpdate(time) {
+          const smooth = (v: number) => v * v * (3 - 2 * v)
+          const u = Math.min(1, time / .85)
+          const tilt = time <= .85 ? smooth(Math.min(1, time / .55)) : 1 - smooth(Math.min(1, (time - .85) / .55))
+          word.style.setProperty("--surname-tilt", `${4 * tilt}deg`)
+          word.style.setProperty("--rim-shadow", String(1 - Math.min(1, Math.max(0, (time - .83) / .08))))
+          let pos = route.release * u * u
+          if (time > .85 && time <= 1.55) {
+            const t = (time - .85) / .70
+            const startSpeed = Math.min(1, 2 * route.release * .70 / (.85 * (route.contact - route.release)))
+            pos = route.release + (route.contact - route.release) * (startSpeed * t + (1 - startSpeed) * t * t)
+          } else if (time > 1.55 && time <= 1.76) {
+            const t = (time - 1.55) / .21
+            pos = route.contact + (route.rebound - route.contact) * (1 - (1 - t) ** 2)
+          } else if (time > 1.76) {
+            pos = route.rebound + (1 - route.rebound) * ((time - 1.76) / .64) ** 1.6
+          }
+          turns.set(Math.min(pos, route.release) * length / (2 * Math.PI * route.radius) + Math.max(0, time - .85) * .95)
+          flight.set(time >= 2.4 ? 1 : Math.min(1, pos))
+        },
       },
     )
     return () => {
       controls.stop()
+      word.style.removeProperty("--surname-tilt")
+      word.style.removeProperty("--rim-shadow")
       unsubscribe()
       inputs.forEach(event => window.removeEventListener(event, release))
     }
@@ -193,9 +231,9 @@ export function HeroSpool({ active }: { active: boolean }) {
         }}
         initial={false}
         animate={active && !reduced
-          ? { opacity: [1, 1, 1, 1], rotate: [0, 9, -15, -7], scale: [1, 1.02, .94, .84] }
+          ? { opacity: [1, 1, 1, 1], rotate: [0, 0, -12, -7], scale: [1, 1.02, .94, .84] }
           : { opacity: 1, rotate: 0, scale: 1 }}
-        transition={{ duration: reduced ? 0 : 1.9, times: [0, .49, .66, 1], ease: "easeInOut" }}
+        transition={{ duration: reduced ? 0 : 2.4, times: [0, .646, .733, 1], ease: "easeInOut" }}
       >
         <SpoolIllustration turns={turns} active={!reduced && Boolean(route)} />
       </motion.span>
