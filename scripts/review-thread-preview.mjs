@@ -96,6 +96,31 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
     await scroll(4)
     await page.waitForTimeout(220)
     const falling = await pose("falling")
+    const continuity = await page.evaluate(() => {
+      const segment = document.querySelector("#single-cotton-reveal path")
+      const d = segment?.getAttribute("d") ?? ""
+      const unified = document.querySelector(".continuous-cotton-fibre")
+      const legacy = document.querySelector(".catch-leading-fibre")
+      const source = document.querySelector(".process-path > g")
+      const screen = document.querySelector(".project-thread").getBoundingClientRect()
+      const sourcePath = document.querySelector("#process-cotton path")
+      const p = sourcePath.getPointAtLength(0)
+      const origin = new DOMPoint(p.x, p.y).matrixTransform(sourcePath.getScreenCTM())
+      const start = d.match(/^M\\s*([-\\d.]+)\\s+([-\\d.]+)/)
+      return {
+        handoff: document.querySelector(".project-thread")?.dataset.handoff,
+        count: (d.match(/\\bM\\b/g) || []).length,
+        distance: start ? Math.hypot(Number(start[1]) - (origin.x - screen.left),
+          Number(start[2]) - (origin.y - screen.top)) : 999,
+        unifiedVisible: unified && getComputedStyle(unified).visibility === "visible",
+        originalHidden: source && getComputedStyle(source).visibility === "hidden",
+        duplicateHidden: legacy && getComputedStyle(legacy).visibility === "hidden"
+      }
+    })
+    assert(continuity.handoff === "true" && continuity.count === 1 &&
+      continuity.distance < 1.5 && continuity.unifiedVisible &&
+      continuity.originalHidden && continuity.duplicateHidden,
+      `${name}: cotton must be one uninterrupted fibre: ${JSON.stringify(continuity)}`)
     await page.waitForTimeout(1000)
     const settled = await pose("settled")
     const sag = await page.locator(".process-path > g").evaluate(g => g.getCTM().b)
@@ -106,7 +131,18 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
     assert(await pose("continuation") > settled)
     await scroll(-1)
     await page.waitForTimeout(450)
-    assert(await pose("reverse") < .001)
+    await pose("reverse")
+    // On scroll reversal the legacy lead may retain an internal MotionValue
+    // fraction for one frame, but no second string may remain VISIBLE.
+    const reversed = await page.evaluate(() => ({
+      handoff: document.querySelector(".project-thread")?.dataset.handoff,
+      single: getComputedStyle(document.querySelector(".continuous-cotton-fibre")).visibility,
+      source: getComputedStyle(document.querySelector(".process-path > g")).visibility,
+      oldLead: getComputedStyle(document.querySelector(".catch-leading-fibre")).visibility,
+    }))
+    assert(reversed.handoff === "false" && reversed.single === "hidden" &&
+      reversed.source === "visible" && reversed.oldLead === "hidden",
+      `${name}: cotton must wind back to its original process line: ${JSON.stringify(reversed)}`)
     await page.locator("#work").scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
     // Verify this is the same *physical* strand: the Selected Work
