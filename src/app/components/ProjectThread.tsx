@@ -175,9 +175,13 @@ export function ProjectThread({ active }: { active: boolean }) {
         const u = i / (source.length - 1)
         const fall = easeFall((t - .17 * (1 - u)) / (1 - .17 * (1 - u)))
         const wave = Math.sin(Math.PI * u)
+        // On phones the falling yarn stays within the right edge of the
+        // composition instead of sweeping across the highlights numbers.
+        const phone = window.matchMedia("(max-width: 640px)").matches
         const suspendedX = pivot.x + (firstTip.x - pivot.x) * u +
-          wave * (34 * Math.sin(3.5 * Math.PI * u) -
-                  16 * Math.sin(7 * Math.PI * u))
+          wave * ((phone ? 9 : 34) * Math.sin(3.5 * Math.PI * u) -
+                  (phone ? 4 : 16) * Math.sin(7 * Math.PI * u) +
+                  (phone ? 11 : 0))
         const suspendedY = pivot.y + (firstTip.y - pivot.y) * u +
           wave * 16 * Math.sin(3 * Math.PI * u)
         return {
