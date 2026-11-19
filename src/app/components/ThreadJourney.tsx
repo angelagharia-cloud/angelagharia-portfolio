@@ -55,6 +55,8 @@ export function HeroSpool({ active }: { active: boolean }) {
   const anchor = useRef<HTMLSpanElement>(null)
   const [route, setRoute] = useState<FlightRoute | null>(null)
   const flight = useMotionValue(0)
+  const laid = useMotionValue(0)
+  const looseEnd = useMotionValue("M0 0")
   const distance = useTransform(flight, value => `${value * 100}%`)
   const turns = useTransform(flight, value => value * 2.6)
   const reduced = useReducedMotion()
@@ -70,20 +72,25 @@ export function HeroSpool({ active }: { active: boolean }) {
       const p = portrait!.getBoundingClientRect()
       const end = process!.getBoundingClientRect()
       // Near the outer jacket/shoulder, NEVER the face or facts controls.
-      const compact = window.matchMedia("(max-width: 767px)").matches
-      const x = p.left + p.width * (compact ? .68 : .29) - a.left
-      const y = p.top + p.height * (compact ? .46 : .38) - a.top
+      const diameter = origin!.querySelector<HTMLElement>(".flight-spool")!.offsetWidth
+      // Measured from the alpha silhouette at 21% of the portrait height.
+      const x = p.left + p.width * .24 - diameter * .39 - a.left
+      const y = p.top + p.height * .21 - diameter * .10 - a.top
       const ex = end.left + end.width * 32 / 1200 - a.left
       const ey = end.top + end.height * 195 / 380 - a.top
 
       // Three connected beats: roll off the type → soft shoulder contact
       // → a damped rebound → falling into the research-process canvas.
-      const approach = `M 0 0 C 14 -11 46 0 51 13 C ${x * .42} 7 ${x - 36} ${y - 40} ${x} ${y}`
-      const bounce = ` C ${x + 7} ${y - 25} ${x + 41} ${y - 54} ${x + 57} ${y - 29}`
+      const stacked = window.matchMedia("(max-width: 1023px)").matches
+      const rail = document.documentElement.clientWidth - a.left - 13
+      const approach = stacked
+        ? `M 0 0 C 18 -6 ${rail} 2 ${rail} 90 C ${rail} ${y * .68} ${rail} ${y - p.height * .34} ${x - 52} ${y - 62} Q ${x - 43} ${y - 32} ${x} ${y}`
+        : `M 0 0 C 14 -11 46 0 51 13 C ${x * .42} 7 ${x - 36} ${y - 40} ${x} ${y}`
+      const bounce = ` C ${x - 9} ${y - 15} ${x - 29} ${y - 24} ${x - 35} ${y - 15}`
       const gutter = end.left * .38 - a.left
       const entry = end.top - a.top
       const seam = process!.closest("section")!.getBoundingClientRect().top - a.top
-      const fall = ` C ${x + 110} ${y + 100} ${gutter} ${seam - 130} ${gutter} ${seam} L ${gutter} ${entry} Q ${gutter} ${ey - 12} ${ex} ${ey}`
+      const fall = ` C ${x - 58} ${y + 64} ${gutter} ${seam - 130} ${gutter} ${seam} L ${gutter} ${entry} Q ${gutter} ${ey - 12} ${ex} ${ey}`
       const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
       path.setAttribute("d", approach + bounce + fall)
       const total = path.getTotalLength()
@@ -114,6 +121,7 @@ export function HeroSpool({ active }: { active: boolean }) {
 
   useEffect(() => {
     if (!active || !route || reduced) return
+    anchor.current?.classList.remove("flight-landed")
     flight.set(0)
     const guide = document.createElementNS("http://www.w3.org/2000/svg", "path")
     guide.setAttribute("d", route.d)
@@ -124,9 +132,23 @@ export function HeroSpool({ active }: { active: boolean }) {
     const release = () => { following = false }
     const inputs = ["wheel", "touchstart", "keydown"] as const
     inputs.forEach(event => window.addEventListener(event, release, { passive: true }))
+    const radius = (anchor.current!.querySelector<HTMLElement>(".flight-spool")!.offsetWidth * .33)
     const unsubscribe = flight.on("change", value => {
+      const travelled = length * value
+      const point = guide.getPointAtLength(travelled)
+      const paidOut = Math.max(0, travelled - radius * 2.9)
+      const seam = guide.getPointAtLength(paidOut)
+      const emergence = Math.min(1, travelled / (radius * 2), (length - travelled) / radius)
+      const tipX = point.x - radius * .72 * emergence
+      const tipY = point.y + radius * .54 * emergence
+      const impact = Math.exp(-Math.pow((value - route.contact) / .055, 2))
+      const slack = emergence * radius * (.38 + impact * .58)
+      laid.set(paidOut / length)
+      const tangent = guide.getPointAtLength(Math.min(length, paidOut + 1))
+      const handle = Math.min(radius * .75, travelled / 4)
+      looseEnd.set(`M ${seam.x} ${seam.y} C ${seam.x + (tangent.x - seam.x) * handle} ${seam.y + (tangent.y - seam.y) * handle} ${tipX - handle} ${tipY + slack} ${tipX} ${tipY}`)
+      if (value >= 1) anchor.current?.classList.add("flight-landed")
       if (!following) return
-      const point = guide.getPointAtLength(length * value)
       const target = Math.max(startScroll, originY + point.y - innerHeight * .61)
       window.scrollTo({ top: target, behavior: "instant" })
     })
@@ -149,15 +171,18 @@ export function HeroSpool({ active }: { active: boolean }) {
   return (
     <span ref={anchor} className="spool-origin" aria-hidden="true">
       {route && active && !reduced && (
-        <svg className="flight-thread">
-          <motion.path
-            d={route.d}
-            fill="none"
-            stroke="#a78c6a"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            style={{ pathLength: flight }}
-          />
+        <svg className="flight-thread" fill="none" strokeLinecap="round">
+          <defs>
+            <mask id="laid-cotton" maskUnits="userSpaceOnUse" x="-5000" y="-5000" width="10000" height="20000">
+              <motion.path d={route.d} stroke="white" strokeWidth="5" style={{ pathLength: laid }} />
+            </mask>
+          </defs>
+          <g mask="url(#laid-cotton)">
+            <path d={route.d} stroke="#927751" strokeWidth="1.85" />
+            <path d={route.d} stroke="#eee1c8" strokeWidth="1.1" strokeDasharray="2.8 1.5" />
+          </g>
+          <motion.path d={looseEnd} stroke="#927751" strokeWidth="1.85" />
+          <motion.path d={looseEnd} stroke="#eee1c8" strokeWidth="1.1" strokeDasharray="2.8 1.5" />
         </svg>
       )}
       <motion.span
@@ -169,7 +194,7 @@ export function HeroSpool({ active }: { active: boolean }) {
         }}
         initial={false}
         animate={active && !reduced
-          ? { opacity: [1, 1, 1, 0], rotate: [0, -9, 12, -14], scale: [1, 1.02, .94, .84] }
+          ? { opacity: [1, 1, 1, 1], rotate: [0, 9, -15, -7], scale: [1, 1.02, .94, .84] }
           : { opacity: 1, rotate: 0, scale: 1 }}
         transition={{ duration: reduced ? 0 : 1.9, times: [0, .49, .66, 1], ease: "easeInOut" }}
       >

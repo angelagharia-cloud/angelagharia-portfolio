@@ -212,3 +212,4 @@
     will-change: auto;
   }
 }
+.spool-origin.flight-landed .flight-spool { visibility: hidden; }
