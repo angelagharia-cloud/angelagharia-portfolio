@@ -167,25 +167,43 @@ export function ProjectThread({ active }: { active: boolean }) {
     function draw() {
       if (!source.length) return
       const t = release.get()
+      const phone = window.matchMedia("(max-width: 640px)").matches
+      // A real cotton strand first peels from the Clarity spool: a small
+      // pocket of slack forms near the release, then its free end accelerates
+      // into the drop. Both pulses vanish as the strand takes the card's load.
+      const peel = easeFall(t / .16) * (1 - easeFall((t - .2) / .46))
+      const sway = easeFall(t / .12) * (1 - easeFall((t - .2) / .63))
       // The spool is source[0] (Clarity). The thread's real, free end is
       // source[last] (Noise), NOT a new segment beginning at the spool.
-      // Gravity draws this same material downward, untying each old loop.
+      // Keep both endpoints pinned; move the free end first, then let tension
+      // travel up the same continuous strand as gravity pulls the loops down.
       const moving = source.map((point, i) => {
         const u = i / (source.length - 1)
-        const fall = easeFall((t - .17 * (1 - u)) / (1 - .17 * (1 - u)))
+        const fall = easeFall((t - .15 * (1 - u)) / (1 - .15 * (1 - u)))
         const wave = Math.sin(Math.PI * u)
-        // On phones the falling yarn stays within the right edge of the
-        // composition instead of sweeping across the highlights numbers.
-        const phone = window.matchMedia("(max-width: 640px)").matches
+        // Stay within the narrow right-side gutter on phones.
         const suspendedX = pivot.x + (firstTip.x - pivot.x) * u +
           wave * ((phone ? 9 : 34) * Math.sin(3.5 * Math.PI * u) -
                   (phone ? 4 : 16) * Math.sin(7 * Math.PI * u) +
                   (phone ? 11 : 0))
         const suspendedY = pivot.y + (firstTip.y - pivot.y) * u +
           wave * 16 * Math.sin(3 * Math.PI * u)
+
+        // The soft bow is concentrated just beyond the spool, rather than
+        // bending the whole line like elastic. Its small gravitational sag
+        // arrives before the long strand becomes taut.
+        const nearRelease = wave * Math.exp(-Math.pow((u - .23) / .22, 2))
+        const bowX = nearRelease * (phone ? 6 : 13) * peel
+        const bowY = nearRelease * (phone ? 5 : 10) * peel
+
+        // A quickly damped transverse wobble travels along the loose cotton.
+        // No perpetual sine-wave motion or jump when the first card catches it.
+        const flutter = wave * Math.sin(12 * t - 9 * u) * (phone ? 2.6 : 5) * sway
+        const looseTip = u * u * Math.sin(10 * t) * (phone ? 1.5 : 3.5) * sway
         return {
-          x: point.x + (suspendedX - point.x) * fall,
-          y: point.y + (suspendedY - point.y) * fall,
+          x: point.x + (suspendedX - point.x) * fall + bowX + flutter + looseTip,
+          y: point.y + (suspendedY - point.y) * fall + bowY +
+            .45 * flutter,
         }
       })
       let d = moving.map((p, i) =>
@@ -232,7 +250,7 @@ export function ProjectThread({ active }: { active: boolean }) {
       if (falling !== released) {
         released = falling
         release.stop()
-        if (falling) animate(release, 1, { duration: 1.3, ease: "easeInOut" })
+        if (falling) animate(release, 1, { duration: 1.45, ease: [0.33, 0.02, 0.27, 1] })
         else release.set(0)
       }
       if (!falling) {
