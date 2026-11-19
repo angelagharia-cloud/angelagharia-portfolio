@@ -454,3 +454,6 @@
   .hero-composition:has(.portrait-stage[data-open="true"]) .hero-copy > .t-lead { grid-row:5; }
   .hero-composition:has(.portrait-stage[data-open="true"]) .hero-copy > dl { grid-row:6; }
 }
+
+.work-spool { visibility: hidden; overflow: visible; }
+.work-spool > div { width: 100%; height: 100%; background-size: 800% 600%; background-repeat: no-repeat; }

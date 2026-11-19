@@ -21,6 +21,7 @@ type Catch = {
   angle: number
   path: string
   start: number
+  finish: number
   arrival: number
 }
 
@@ -33,7 +34,7 @@ function CornerCatch({
 }) {
   const { id, x, y, width, path, start, arrival } = shot
   const line = useTransform(cursor, [start, arrival], [0, 1])
-  const frame = useTransform(cursor, [arrival, y + 48], [0, 47])
+  const frame = useTransform(cursor, [arrival, shot.finish], [0, 47])
   const position = useTransform(frame, (n) => {
     const i = Math.round(n)
     return `${((i % 8) * 100) / 7}% ${Math.floor(i / 8) * 20}%`
@@ -147,6 +148,7 @@ function CornerCatch({
 
 export function ProjectThread({ active }: { active: boolean }) {
   const svg = useRef<SVGSVGElement>(null)
+  const traveller = useRef<SVGForeignObjectElement>(null)
   const [shots, setShots] = useState<Catch[]>([])
   const [nearWork, setNearWork] = useState(false)
   const cursor = useMotionValue(0)
@@ -170,6 +172,28 @@ export function ProjectThread({ active }: { active: boolean }) {
         ?.closest("article"),
     )
     const layer = svg.current!
+    const spool = canvas.querySelector<HTMLElement>(".process-spool")!
+    const moving = traveller.current!
+    const sprite = moving.firstElementChild as HTMLElement
+    let spans: { shot: Catch, guide: SVGPathElement, length: number }[] = []
+    function follow() {
+      const value = cursor.get()
+      const away = !reduced && spans.length > 0 && value > spans[0].shot.start
+      moving.style.visibility = away ? "visible" : "hidden"
+      spool.style.visibility = away ? "hidden" : ""
+      if (!away) return
+      const span = spans.find(({shot}) => value < shot.finish) ?? spans[spans.length - 1]
+      const {shot, guide, length} = span
+      const fraction = Math.max(0, Math.min(1, (value - shot.start) / (shot.arrival - shot.start)))
+      const tip = guide.getPointAtLength(length * fraction)
+      const wrap = Math.max(0, Math.min(1, (value - shot.arrival) / (shot.finish - shot.arrival)))
+      const x = tip.x + (shot.x + 4 - tip.x) * wrap
+      const y = tip.y + (shot.y + 35 - tip.y) * wrap
+      moving.setAttribute("x", String(x - spool.offsetWidth / 2))
+      moving.setAttribute("y", String(y - spool.offsetHeight / 2))
+      sprite.style.backgroundPosition = getComputedStyle(spool).backgroundPosition
+      sprite.style.transform = "rotate(" + Math.min(value - spans[0].shot.start, 90) * .4 + "deg)"
+    }
     function update() {
       if (reduced) {
         cursor.set(Number.MAX_SAFE_INTEGER)
@@ -185,7 +209,7 @@ export function ProjectThread({ active }: { active: boolean }) {
         (trackBottom - box.bottom) - origin
       const distancePastClarity = innerHeight * 0.72 - trackBottom
       if (distancePastClarity <= 0) {
-        cursor.set(from)
+        cursor.set(spans[0]?.shot.start ?? from)
         return
       }
       const visible = innerHeight * 0.68 - origin
@@ -203,7 +227,7 @@ export function ProjectThread({ active }: { active: boolean }) {
     function measure() {
       const origin = layer.getBoundingClientRect(),
         box = canvas.getBoundingClientRect()
-      const rail = Math.min(origin.width - 6, box.right - origin.left + 12)
+      const rail = Math.min(origin.width - spool.offsetWidth / 2, box.right - origin.left + 12)
       const exit = canvas.querySelector<HTMLElement>(".process-exit")?.getBoundingClientRect()
       const trackBottom = canvas.parentElement!.getBoundingClientRect().bottom
       // The process line ends at x=1170,y=198 on its SVG. Read its exact
@@ -248,6 +272,8 @@ export function ProjectThread({ active }: { active: boolean }) {
           : `M ${px} ${py}
           C ${px + (rail - px) * .8} ${py + 5}, ${rail} ${py + reach * .12}, ${rail} ${py + reach * .35}
           S ${rail + 3} ${inletY - 44}, ${inletX} ${inletY}`
+        const start = result[result.length - 1]?.finish ?? py
+        const arrival = Math.max(start + 90, inletY)
         result.push({
           inletX,
           inletY,
@@ -258,21 +284,33 @@ export function ProjectThread({ active }: { active: boolean }) {
           width,
           angle,
           path,
-          start: py,
-          arrival: inletY,
+          start, arrival, finish: arrival + 48,
         })
         px = x + 4
         py = y + 35
       })
+      moving.setAttribute("width", String(spool.offsetWidth))
+      moving.setAttribute("height", String(spool.offsetHeight))
+      sprite.style.backgroundImage = getComputedStyle(spool).backgroundImage
+      spans = result.map(shot => {
+        const guide = document.createElementNS("http://www.w3.org/2000/svg", "path")
+        guide.setAttribute("d", shot.path)
+        return {shot, guide, length: guide.getTotalLength()}
+      })
       setShots(result)
       update()
     }
+    const unsubscribe = cursor.on("change", follow)
     measure()
+    follow()
     const ro = new ResizeObserver(measure)
     ro.observe(document.body)
     cards.forEach((c) => c && ro.observe(c))
     window.addEventListener("scroll", update, { passive: true })
     return () => {
+      unsubscribe()
+      spool.style.visibility = ""
+      moving.style.visibility = "hidden"
       ro.disconnect()
       window.removeEventListener("scroll", update)
     }
@@ -283,6 +321,7 @@ export function ProjectThread({ active }: { active: boolean }) {
         shots.map((shot) => (
           <CornerCatch key={shot.id} shot={shot} cursor={cursor} />
         ))}
+      <foreignObject ref={traveller} className="work-spool"><div /></foreignObject>
     </svg>
   )
 }

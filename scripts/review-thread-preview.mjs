@@ -73,6 +73,26 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
     await page.waitForTimeout(3500);
     await page.screenshot({ path: `${output}/${name}-step-one-arrival.png`, fullPage: true });
     await page.screenshot({ path: `${output}/${name}-arrival-viewport.png` });
+    const release = await page.locator(".process-track").evaluate(el =>
+      scrollY + el.getBoundingClientRect().bottom - innerHeight * .72)
+    for (const delta of [-2, 2, 100, -2]) {
+      await page.evaluate(y => window.scrollTo({top:y, behavior:"instant"}), release + delta)
+      await page.waitForTimeout(180)
+      const pose = await page.evaluate(() => {
+        const actor = document.querySelector(".work-spool")
+        const source = document.querySelector(".process-spool")
+        const mark = document.querySelector(".process-exit").getBoundingClientRect()
+        const box = actor.getBoundingClientRect()
+        return {moving:getComputedStyle(actor).visibility === "visible",
+          parked:getComputedStyle(source).visibility === "visible" && !source.hidden,
+          dx:box.left + box.width/2 - mark.left, dy:box.top + box.height/2 - mark.top}
+      })
+      assert.equal(pose.moving, delta > 0)
+      assert.equal(pose.parked, delta < 0)
+      if (delta === 2) assert(Math.hypot(pose.dx, pose.dy) < 12, JSON.stringify(pose))
+      if (delta === 100) assert(pose.dy > 10, JSON.stringify(pose))
+      await page.screenshot({path:output + "/" + name + "-handoff-" + delta + ".png"})
+    }
     await page.locator("#work").scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
     // Verify this is the same *physical* strand: the Selected Work
