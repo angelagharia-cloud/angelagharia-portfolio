@@ -318,16 +318,10 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
   const entryCurve = `M${startX} 195`
   const curve = entryCurve + " " + chapters.join(" ")
   const slack = useMotionValue(0)
-  const hangingCurve = useTransform(slack, t => {
-    if (!t) return curve
-    // Both endpoints stay pinned as slack travels through the original loops.
-    return curve.replace(/(-?\d+) (-?\d+)/g, (_, sx, sy) => {
-      const x = Number(sx), y = Number(sy)
-      const along = Math.max(0, Math.min(1, (x - 120) / 1050))
-      const sag = Math.sin(Math.PI * along)
-      const wave = Math.sin(2 * Math.PI * (along - t))
-      return (x + t * sag * 64) + " " + (y + t * sag * (92 + 26 * wave))
-    })
+  const hangingPose = useTransform(slack, t => {
+    // Keep the fibre and its reveal mask together; the spool is the pivot.
+    const sway = Math.sin(t * Math.PI) * .025
+    return `translate(1170 198) matrix(${1 - .08*t}  ${-.067*t - sway} 0 1 0 0) translate(-1170 -198)`
   })
   const positionX = useMotionValue(`${startX / 12}%`)
   const positionY = useMotionValue("51.316%")
@@ -406,10 +400,10 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
             <p>{words[stage].question}</p>
           </div>
           <svg viewBox="0 0 1200 380" preserveAspectRatio="none" className="process-path">
-            <mask id="process-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="380">
-              <motion.path ref={path} d={hangingCurve} fill="none" stroke="white" strokeWidth="18" style={{ pathLength: progress }} />
+            <motion.g transform={hangingPose}><mask id="process-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="380">
+              <motion.path ref={path} d={curve} fill="none" stroke="white" strokeWidth="18" style={{ pathLength: progress }} />
             </mask>
-            <g mask="url(#process-cotton)"><CottonStrip curve={hangingCurve} width={3.45} step={8} screenWidth /></g></svg>
+            <g mask="url(#process-cotton)"><CottonStrip curve={curve} width={3.45} step={8} screenWidth /></g></motion.g></svg>
           {/* Exact end of Clarity & focus. The falling portfolio cotton begins at this same physical point. */}
           <span className="process-exit" aria-hidden="true" />
           <div aria-hidden="true" className="landing-entry" data-settled={active} style={{ left: String(startX / 12) + "%" }}>

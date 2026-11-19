@@ -90,7 +90,7 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
       return result.paid
     }
     const scroll = delta => page.evaluate(y => window.scrollTo({top:y, behavior:"instant"}), release + delta)
-    await scroll(0)
+    await scroll(-2)
     await page.waitForTimeout(350)
     const held = await pose("held")
     await scroll(4)
