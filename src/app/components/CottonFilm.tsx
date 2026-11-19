@@ -179,7 +179,7 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
       }
       const followTarget = Math.max(initialScroll, scrollY + y - h * .57)
       if (following && time > rollEnd)
-        window.scrollTo({ top: lerp(scrollY, followTarget, 1 - Math.exp(-12 * dt)), behavior: "instant" })
+        window.scrollTo({ top: lerp(scrollY, followTarget, 1 - Math.exp(-12 * dt)), behavior: "auto" })
       entry.style.setProperty("--contact-shadow", String(smooth(1 - clamp(Math.abs(e.top - y) / size))))
       const offset = scrollBefore - scrollY
       y += offset
