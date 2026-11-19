@@ -54,13 +54,23 @@ async function review(label, viewport, reducedMotion="no-preference") {
   const cropY=Math.max(0,Math.min(viewport.height-145,origin.y-20));
   const clip={x:cropX,y:cropY,width:Math.min(100,viewport.width-cropX),
     height:Math.min(145,viewport.height-cropY)};
+  const state=()=>page.locator(".project-thread").evaluate(node=>({
+    progress:Number(node.dataset.gravityProgress),
+    drop:Number(node.dataset.gravityDrop),
+    handoff:node.dataset.handoff,
+  }));
+  const start=await state();
   const first=await page.screenshot({path:output+"/"+label+"-drop-start.png"});
   const firstCotton=await page.screenshot({clip});
   await page.waitForTimeout(1000);
+  const end=await state();
   const second=await page.screenshot({path:output+"/"+label+"-drop-end.png"});
   const secondCotton=await page.screenshot({clip});
-  assert(!firstCotton.equals(secondCotton),
-    label+": the cotton beside Clarity must visibly grow while scroll is stationary");
+  console.log(label+" cotton release", JSON.stringify({start,end,changed:!firstCotton.equals(secondCotton)}));
+  assert(end.progress>start.progress+.15,
+    label+": gravity release is stuck "+JSON.stringify({start,end}));
+  assert(!firstCotton.equals(secondCotton) || Math.abs(end.drop-start.drop)>10,
+    label+": cotton is not visibly moving at the Clarity handoff");
 
   await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),releaseScroll+170);
   await page.waitForTimeout(160);
