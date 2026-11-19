@@ -427,8 +427,9 @@
   .process-canvas .process-word small { display:block; }
   .process-canvas .process-word strong { color:#23242a; }
 }
-@media(max-width:360px) {
-  .hero-composition:has(.portrait-stage[data-open="true"]) .hero-actions { grid-area:4 / 1 / 5 / 3; }
+@media(max-width:639px) {
+  .hero-composition:has(.portrait-stage[data-open="true"]) .hero-actions { grid-area:3 / 1 / 4 / 3; align-self:start; padding:1rem 0 0; }
+  .hero-composition:has(.portrait-stage[data-open="true"]) .hero-subject { grid-row:4; }
   .hero-composition:has(.portrait-stage[data-open="true"]) .hero-copy > .t-lead { grid-row:5; }
   .hero-composition:has(.portrait-stage[data-open="true"]) .hero-copy > dl { grid-row:6; }
 }
