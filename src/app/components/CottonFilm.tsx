@@ -57,7 +57,6 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
     const entry = document.querySelector<HTMLElement>(".landing-entry")!
     const receiver = document.querySelector<HTMLElement>(".process-spool")!
     const spindle = anchor.querySelector<HTMLElement>(".flight-spool")!
-    const introduction = scene.querySelector<HTMLElement>(".hero-copy > .t-lead")!
     let dirty: { x:number; y:number; width:number; height:number } | undefined
     const atlas = new Image(), grain = new Image()
     atlas.src = innerWidth <= 640 ? smallSpin : spin
@@ -154,18 +153,11 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
         x = lerp(shoulderX, e.left, 1 - (1 - t) ** 1.4)
         y = lerp(shoulderY, e.top, t * t) + takeoff * (ground - hit) * t * (1 - t)
       }
-      // On narrow screens, let the bobbin clear the controls before it
-      // reaches the margin alongside the biography and process introduction.
-      const copyTop = w < 1024 ? worldBox(introduction).top : 0
+      // Preserve the original shoulder-to-process arc on every breakpoint.
+      // Do not reroute the bobbin into the far-left page gutter to avoid text:
+      // it should fall naturally where the physical jacket bounce sends it.
       word.style.setProperty("--surname-tilt", String(4 * tilt) + "deg")
       word.style.setProperty("--letter-load", String(pressure * Math.min(2.8, size * .033)) + "px")
-      const rail = Math.max(diameter * .53 + 2, 15)
-      function lane(atY: number) {
-        const clear = smooth((atY - shoulderY - 38) / Math.max(90, copyTop - shoulderY - 65))
-        const enter = smooth((atY - e.top + 105) / 105)
-        return lerp(lerp(shoulderX, rail, clear), e.left, enter)
-      }
-      if (time > hit && w < 1024) x = lane(y)
       // Contact reverses only the normal velocity. Two short ballistic
       // hops dissipate energy before scroll takes over the same spindle.
       if (time >= ground) {
@@ -246,12 +238,8 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
         const pinned = points.length
         cottonSpan(points, seam, end, Math.min(22, Math.hypot(end.x - seam.x, end.y - seam.y) * .14),
           Math.min(19, size * .24), time - hit)
-        // The released cotton trails along the route the bobbin actually
-        // took. A straight chord here would cut through the mobile bio.
-        if (w < 1024) for (let i = pinned; i < points.length; i++) {
-          const q = (i - pinned + 1) / (points.length - pinned)
-          points[i].x = lane(points[i].y - offset - diameter * peel.y) + lerp(size * graze.x, diameter * peel.x, q)
-        }
+        // Keep the natural cottonSpan curve tied directly from jacket
+        // contact to the spool instead of redrawing a gutter-hugging detour.
         // A soft contact spreads around the jacket seam. As the trailing
         // fibre slips away, a broader radius releases that contact.
         const radius = Math.min(pinned - 1, points.length - pinned, 2 + Math.round(5 * smooth((time-hit)/.34)))
