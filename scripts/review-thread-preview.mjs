@@ -80,14 +80,17 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
         const spool = document.querySelector(".process-spool")
         const mark = document.querySelector(".process-exit").getBoundingClientRect()
         const box = spool.getBoundingClientRect()
-        const mask = document.querySelector("#catch-line-creative-key path")
+        const fibre = document.querySelector(".project-thread")
+        const mask = document.querySelector("#single-cotton-reveal path")
         return { visible: !spool.hidden && getComputedStyle(spool).visibility === "visible",
           offset: Math.hypot(box.left + box.width / 2 - mark.left, box.top + box.height / 2 - mark.top),
-          paid: parseFloat(mask.getAttribute("stroke-dasharray")) }
+          paid: parseFloat(mask?.getAttribute("stroke-dasharray") ?? 0),
+          fall: Number(fibre?.dataset.gravityDrop ?? 0),
+          progress: Number(fibre?.dataset.gravityProgress ?? 0) }
       })
       assert(result.visible && result.offset < (label === "held" ? 6 : 3), JSON.stringify(result))
       await page.screenshot({path:output + "/" + name + "-handoff-" + label + ".png"})
-      return result.paid
+      return result
     }
     const scroll = delta => page.evaluate(y => window.scrollTo({top:y, behavior:"instant"}), release + delta)
     await scroll(-2)
@@ -104,7 +107,9 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
       const source = document.querySelector(".process-path > g")
       const screen = document.querySelector(".project-thread").getBoundingClientRect()
       const sourcePath = document.querySelector("#process-cotton path")
-      const p = sourcePath.getPointAtLength(0)
+      // Continuous yarn is reversed: it starts at the fixed Clarity spool
+      // and the original Noise-end is the part gravity pulls into Work.
+      const p = sourcePath.getPointAtLength(sourcePath.getTotalLength())
       const origin = new DOMPoint(p.x, p.y).matrixTransform(sourcePath.getScreenCTM())
       const start = d.match(/^M\s*([-\d.]+)\s+([-\d.]+)/)
       return {
@@ -121,14 +126,27 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
       continuity.distance < 1.5 && continuity.unifiedVisible &&
       continuity.originalHidden && continuity.duplicateHidden,
       `${name}: cotton must be one uninterrupted fibre: ${JSON.stringify(continuity)}`)
-    await page.waitForTimeout(1000)
+    await page.waitForTimeout(1200)
+    const drop = await page.locator(".project-thread").evaluate(svg => ({
+      progress: Number(svg.dataset.gravityProgress),
+      pixels: Number(svg.dataset.gravityDrop),
+      originalVisible: getComputedStyle(document.querySelector(".process-path > g")).visibility,
+      existingFibreVisible: getComputedStyle(document.querySelector(".continuous-cotton-fibre")).visibility,
+    }))
+    assert(drop.progress > .95 && drop.pixels > 120 &&
+      drop.originalVisible === "hidden" && drop.existingFibreVisible === "visible",
+      `${name}: existing tangled cotton must FALL visibly, not grow a fresh lead: ${JSON.stringify(drop)}`)
+    await page.screenshot({ path: `${output}/${name}-actual-tangle-falling.png` })
     const settled = await pose("settled")
     const sag = await page.locator(".process-path > g").evaluate(g => g.getCTM().b)
     assert(sag < -.01, "Rendered squiggle must sag after release")
-    assert(settled > falling && falling > held, JSON.stringify({held, falling, settled}))
+    assert(settled.progress > .98 && settled.fall > falling.fall + 100 &&
+      falling.fall >= held.fall, JSON.stringify({held, falling, settled}))
     await scroll(150)
-    await page.waitForTimeout(100)
-    assert(await pose("continuation") > settled)
+    await page.waitForTimeout(120)
+    const continued = await pose("continuation")
+    assert(continued.paid >= settled.paid,
+      `${name}: fibre reveal must advance through project cards: ${JSON.stringify({settled,continued})}`)
     await scroll(-1)
     await page.waitForTimeout(450)
     await pose("reverse")
@@ -145,33 +163,37 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
       `${name}: cotton must wind back to its original process line: ${JSON.stringify(reversed)}`)
     await page.locator("#work").scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
-    // Verify this is the same *physical* strand: the Selected Work
-    // continuation must begin at the responsive end of Clarity & focus,
-    // including the track's final sticky-release offset.
+    // Reversing across the handoff intentionally resets the gravity film.
+    // When returning to Work, let the original cotton complete its fall
+    // before inspecting the final anchored geometry.
+    await page.waitForFunction(() =>
+      Number(document.querySelector(".project-thread")?.dataset.gravityProgress ?? 0) > .98,
+      undefined, { timeout: 5000 });
+    // At the cards, the visible strand must still START at the original
+    // fixed Clarity spool, not at a hidden, newly generated card lead.
     await page.waitForFunction(() => Boolean(
-      document.querySelector('#catch-line-creative-key path[d]')
+      document.querySelector('#single-cotton-reveal path[d]')
     ), undefined, { timeout: 6000 });
     const seam = await page.evaluate(() => {
       const svg = document.querySelector('.project-thread');
-      const exit = document.querySelector('.process-exit');
-      const canvas = document.querySelector('.process-canvas');
-      const track = document.querySelector('.process-track');
-      const first = document.querySelector('#catch-line-creative-key path[d]');
-      const start = first.getAttribute('d').trim().match(/^M\s*([-\d.]+)\s+([-\d.]+)/);
-      const output = svg.getBoundingClientRect();
-      const mark = exit.getBoundingClientRect();
-      const box = canvas.getBoundingClientRect();
-      const trackBox = track.getBoundingClientRect();
+      const shape = document.querySelector('#single-cotton-reveal path[d]');
+      const original = document.querySelector('#process-cotton path');
+      const text = shape.getAttribute('d');
+      const match = text.trim().match(/^M\s*([-\d.]+)\s+([-\d.]+)/);
+      const spool = original.getPointAtLength(original.getTotalLength());
+      const screen = new DOMPoint(spool.x, spool.y).matrixTransform(original.getScreenCTM());
+      const overlay = svg.getBoundingClientRect();
       return {
-        startX: Number(start?.[1]),
-        startY: Number(start?.[2]),
-        exitX: mark.left - output.left,
-        exitY: mark.top + trackBox.bottom - box.bottom - output.top,
+        startX: Number(match?.[1]), startY: Number(match?.[2]),
+        spoolX: screen.x - overlay.left, spoolY: screen.y - overlay.top,
+        pathCount: (text.match(/\bM\b/g)||[]).length,
+        falling: Number(svg.dataset.gravityProgress),
       };
     });
-    assert(Math.abs(seam.startX - seam.exitX) < 1.25 &&
-      Math.abs(seam.startY - seam.exitY) < 1.25,
-      `${name}: new work thread does not join process exit: ${JSON.stringify(seam)}`);
+    assert(Math.abs(seam.startX - seam.spoolX) < 2 &&
+      Math.abs(seam.startY - seam.spoolY) < 2 &&
+      seam.pathCount === 1 && seam.falling > .95,
+      "original cotton must remain attached to Clarity: " + JSON.stringify(seam));
     await page.screenshot({ path: `${output}/${name}-projects.png`, fullPage: true });
     await page.screenshot({ path: `${output}/${name}-projects-viewport.png` });
   }
