@@ -293,6 +293,49 @@ const chapters = [
   // Clarity — quiet, nearly straight cotton (ends at 1170,198).
   "C990 196 1060 198 1170 198",
 ]
+
+/**
+ * Untangle chapter one instead of merely drawing an immutable squiggle.
+ * Each of the nine original Bézier coils has an individual release delay, so
+ * the knots loosen sequentially into one quiet, slightly imperfect strand.
+ * The origin (120,195) and the exit (321,222) never move: the landing spool
+ * and the next chapter can stay physically connected at every scroll position.
+ */
+const originalNoise = chapters[0].match(/-?\d+(?:\.\d+)?/g)!.map(Number)
+const noiseSegments = originalNoise.length / 6
+const noiseX = (t: number) => 120 + 201 * t
+const noiseY = (t: number) => 195 + 27 * t + 5 * Math.sin(t * Math.PI * 2) * (1 - t)
+const clamp01 = (t: number) => Math.min(1, Math.max(0, t))
+const settle = (t: number) => {
+  const p = clamp01(t)
+  return p * p * (3 - 2 * p)
+}
+const tween = (from: number, to: number, t: number) => from + (to - from) * t
+
+function unwindingNoise(progress: number) {
+  const result: string[] = []
+  for (let i = 0; i < noiseSegments; i++) {
+    // Early coils release slightly before the next one, with no end-frame jump.
+    const delay = i * .035
+    const released = settle((progress - delay) / (1 - delay))
+    const u0 = i / noiseSegments
+    const u1 = (i + 1) / noiseSegments
+    const fromX = noiseX(u0), fromY = noiseY(u0)
+    const toX = noiseX(u1), toY = noiseY(u1)
+    const wobble = 3 * (1 - u0) * Math.sin(i * 2.15)
+    const straight = [
+      tween(fromX, toX, 1 / 3), tween(fromY, toY, 1 / 3) + wobble,
+      tween(fromX, toX, 2 / 3), tween(fromY, toY, 2 / 3) - wobble,
+      toX, toY,
+    ]
+    const coords = straight.map((value, j) =>
+      tween(originalNoise[i * 6 + j], value, released).toFixed(2),
+    )
+    result.push("C" + coords.join(" "))
+  }
+  return result.join(" ")
+}
+
 // Same tangent and settled slack shape as the last flight frame, in
 // hundredths of the spool width. It stays on the page as more cotton pays out.
 const settledTail = Array.from({ length: 25 }, (_, i) => {
@@ -318,6 +361,7 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
   const startX = 120 // 10% of the 1200-unit process canvas; safely in step 1
   const entryCurve = `M${startX} 195`
   const curve = entryCurve + " " + chapters.join(" ")
+  const liveCurve = useMotionValue(curve)
   const positionX = useMotionValue(`${startX / 12}%`)
   const positionY = useMotionValue("51.316%")
   const progress = useMotionValue(0)
@@ -328,48 +372,78 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
 
   useEffect(() => {
     const node = path.current!
-    const total = node.getTotalLength()
-    // The tangle is much longer than the straight portion. Map the same
-    // scroll distance to each chapter so the last two stages remain legible.
-    const measure = document.createElementNS("http://www.w3.org/2000/svg", "path")
-    let prefix = entryCurve
-    const stops = [0, ...chapters.map(segment => {
-      prefix += " " + segment
-      measure.setAttribute("d", prefix)
-      return measure.getTotalLength()
-    })]
-    // The camera may have moved the sticky stage during the fall. Start
-    // its scroll travel at the exact frame where the landing settled.
+    const measuringPath = document.createElementNS("http://www.w3.org/2000/svg", "path")
+    // Measure chapter boundaries on the fully untangled path; chapters 2-4
+    // never shift when the knot in chapter one changes its length.
+    let prefix = entryCurve + " " + unwindingNoise(1)
+    measuringPath.setAttribute("d", prefix)
+    const stops = [0, measuringPath.getTotalLength()]
+    for (const chapter of chapters.slice(1)) {
+      prefix += " " + chapter
+      measuringPath.setAttribute("d", prefix)
+      stops.push(measuringPath.getTotalLength())
+    }
+    const firstMeasure = document.createElementNS("http://www.w3.org/2000/svg", "path")
+    // Start this scroll chapter at the exact position where the falling spool
+    // settled, even when landing auto-scrolls partway into the sticky section.
     const travelAtScroll = () => {
       const box = track.current!.getBoundingClientRect()
-      return Math.max(0, Math.min(1, (innerHeight * .28 - box.top) / Math.max(1, box.height - innerHeight * .44)))
+      return clamp01((innerHeight * .28 - box.top) / Math.max(1, box.height - innerHeight * .44))
     }
     const arrival = active && fromHero && !reduced ? travelAtScroll() : 0
     function draw(value: number) {
       const travel = (value - arrival) / Math.max(.001, 1 - arrival)
       const phase = active ? (reduced ? 4 : Math.max(0, Math.min(4, travel * 4))) : 0
-      const chapter = Math.min(3, Math.floor(phase))
-      const distance = stops[chapter] + (phase - chapter) * (stops[chapter + 1] - stops[chapter])
-      const pos = node.getPointAtLength(distance)
-      setStage(chapter)
+      const chapterIndex = Math.min(3, Math.floor(phase))
+
+      // Material geometry changes as the scroll moves: real coils contract,
+      // thread segments un-cross, and the laid strand becomes quieter.
+      const noise = unwindingNoise(Math.min(1, phase))
+      const nextCurve = entryCurve + " " + noise + " " + chapters.slice(1).join(" ")
+      if (nextCurve !== liveCurve.get()) {
+        node.setAttribute("d", nextCurve)
+        liveCurve.set(nextCurve)
+      }
+
+      let distance: number
+      if (phase < 1) {
+        firstMeasure.setAttribute("d", entryCurve + " " + noise)
+        distance = firstMeasure.getTotalLength() * phase
+      } else {
+        distance = stops[chapterIndex] + (phase - chapterIndex) *
+          (stops[chapterIndex + 1] - stops[chapterIndex])
+      }
+      const total = Math.max(1, node.getTotalLength())
+      const pos = node.getPointAtLength(Math.min(total, distance))
+      setStage(chapterIndex)
       positionX.set(String(pos.x / 12) + "%")
-      // Match the visual SVG squash on narrow screens in JS rather than
-      // relying on CSS calc(percent * variable), which is less portable.
+      // Match the squashed SVG coordinates used on narrow phones; do not
+      // rely on calc(percent * custom property) across browser engines.
       const depth = window.matchMedia("(max-width: 640px)").matches ? .66 : 1
       positionY.set(`${52.1053 + ((pos.y - 198) / 3.8) * depth}%`)
-      progress.set(distance / total)
-      // Rock through the studio take in both directions without a cut
-      // between its stationary first and last frames.
-      const cycle = distance / 210
+      progress.set(Math.min(1, distance / total))
+
+      // Turn according to scroll progress rather than deforming path length,
+      // so contraction of a loop cannot make the bobbin spin backwards.
+      const cycle = phase * .72
       const frame = Math.round(47 * (.5 + .5 * Math.cos(Math.PI * cycle)))
-      rollFrame.set(String((frame % 8) * 100 / 7) + "% " + String(Math.floor(frame / 8) * 20) + "%")
+      rollFrame.set(String((frame % 8) * 100 / 7) + "% " +
+        String(Math.floor(frame / 8) * 20) + "%")
     }
-    const update = () => draw(travelAtScroll())
-    update()
-    window.addEventListener("scroll", update, { passive:true })
+    let request = 0
+    const update = () => {
+      cancelAnimationFrame(request)
+      request = requestAnimationFrame(() => draw(travelAtScroll()))
+    }
+    draw(travelAtScroll())
+    window.addEventListener("scroll", update, { passive: true })
     window.addEventListener("resize", update)
-    return () => { window.removeEventListener("scroll", update); window.removeEventListener("resize", update) }
-  }, [active, fromHero, entryCurve, reduced, positionX, positionY, progress, rollFrame])
+    return () => {
+      cancelAnimationFrame(request)
+      window.removeEventListener("scroll", update)
+      window.removeEventListener("resize", update)
+    }
+  }, [active, fromHero, entryCurve, reduced, positionX, positionY, progress, rollFrame, liveCurve])
 
   return (
     <section id="design-process" aria-labelledby="process-heading" className="thread-process">
@@ -382,7 +456,7 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
           <p className="max-w-sm text-sm leading-relaxed text-neutral-600">Design rarely starts with a straight line. I explore, connect and refine until the right solution becomes clear.</p>
         </div>
         <div className="process-track" ref={track}>
-        <div className="process-canvas" aria-label="An illustration showing a tangled thread gradually becoming a straight line">
+        <div className="process-canvas" aria-label="An interactive cotton thread that physically untangles as you scroll, moving from uncertainty into clarity">
           <div className="process-question" key={stage}>
             <p>{words[stage].question}</p>
           </div>
@@ -390,7 +464,7 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
             <mask id="process-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="380">
               <motion.path ref={path} d={curve} fill="none" stroke="white" strokeWidth="18" style={{ pathLength: progress }} />
             </mask>
-            <g mask="url(#process-cotton)"><CottonStrip curve={curve} width={3.45} step={8} screenWidth /></g></svg>
+            <g mask="url(#process-cotton)"><CottonStrip curve={liveCurve} width={3.45} step={12} screenWidth /></g></svg>
           <div aria-hidden="true" className="landing-entry" data-settled={active} style={{ left: String(startX / 12) + "%" }}>
             <motion.span className="ground-shadow" style={{ opacity: groundShadow }} />
           </div>
