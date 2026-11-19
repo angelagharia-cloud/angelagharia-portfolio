@@ -1,3 +1,5 @@
+import { Landing } from "./Landing"
+import restingBobbin from "../../imports/opt/landing-bobbin.webp"
 import { CottonFilm } from "./CottonFilm"
 import { CottonStrip } from "./CottonStrip"
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -54,7 +56,7 @@ type FlightRoute = { d: string; release: number; radius: number; contact: number
  * The line and the photographed spool share ONE motion value so the cotton
  * never draws ahead of, or behind, the moving object.
  */
-export function HeroSpool({ active }: { active: boolean }) {
+export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: () => void }) {
   const anchor = useRef<HTMLSpanElement>(null)
   const [filmFailed, setFilmFailed] = useState(false)
   const fallback = useCallback(() => setFilmFailed(true), [])
@@ -81,8 +83,9 @@ export function HeroSpool({ active }: { active: boolean }) {
       // Measured from the alpha silhouette at 21% of the portrait height.
       const x = p.left + p.width * .24 - diameter * .39 - a.left
       const y = p.top + p.height * .21 - diameter * .10 - a.top
-      const ex = end.left + end.width * 32 / 1200 - a.left
-      const ey = end.top + end.height * 195 / 380 - a.top
+      const arrival = process!.querySelector(".landing-entry")!.getBoundingClientRect()
+      const ex = arrival.left - a.left
+      const ey = arrival.top - a.top
 
       // Three connected beats: roll off the type → soft shoulder contact
       // → a damped rebound → falling into the research-process canvas.
@@ -170,7 +173,7 @@ export function HeroSpool({ active }: { active: boolean }) {
       const tangent = guide.getPointAtLength(Math.min(length, paidOut + 1))
       const handle = Math.min(radius * .75, travelled / 4)
       looseEnd.set(`M ${seam.x} ${seam.y} C ${seam.x + (tangent.x - seam.x) * handle} ${seam.y + (tangent.y - seam.y) * handle} ${tipX - handle} ${tipY + slack} ${tipX} ${tipY}`)
-      if (value >= 1) anchor.current?.classList.add("flight-landed")
+      if (value >= 1) { anchor.current?.classList.add("flight-landed"); onArrival() }
       if (!following) return
       const target = Math.max(startScroll, originY + point.y - innerHeight * .61)
       window.scrollTo({ top: target, behavior: "instant" })
@@ -212,7 +215,7 @@ export function HeroSpool({ active }: { active: boolean }) {
 
   return (
     <span ref={anchor} className="spool-origin" aria-hidden="true">
-      {active && !reduced && !filmFailed && <CottonFilm onFallback={fallback} />}
+      {active && !reduced && !filmFailed && <CottonFilm onFallback={fallback} onArrival={onArrival} />}
       {filmFailed && route && active && !reduced && (
         <svg className="flight-thread" fill="none" strokeLinecap="round">
           <defs>
@@ -245,72 +248,8 @@ export function HeroSpool({ active }: { active: boolean }) {
   )
 }
 
-/** The continuous thread hooks around the corners of three real case studies. */
-export function ProjectThread({ active }: { active: boolean }) {
-  const svg = useRef<SVGSVGElement>(null)
-  const [route, setRoute] = useState("")
-  const progress = useMotionValue(0)
-  const reduced = useReducedMotion()
-
-  useEffect(() => {
-    const layer = svg.current
-    const canvas = document.querySelector(".process-canvas")
-    const cards = Array.from(document.querySelectorAll<HTMLElement>("#work article")).slice(0, 3)
-    if (!layer || !canvas || cards.length < 3) return
-    let raf = 0
-    function update() {
-      const start = canvas!.getBoundingClientRect().bottom
-      const end = cards[2].getBoundingClientRect().top + 52
-      const distance = Math.max(1, end - start)
-      progress.set(reduced ? 1 : Math.max(0, Math.min(1, (innerHeight * .78 - start) / distance)))
-    }
-    function measure() {
-      const origin = layer!.getBoundingClientRect()
-      const start = canvas!.getBoundingClientRect()
-      const x = start.left - origin.left + start.width * .975
-      const y = start.top - origin.top + start.height * 198 / 380
-      const rail = Math.min(origin.width - 10, start.right - origin.left + 12)
-      let d = `M ${x} ${y} Q ${rail} ${y} ${rail} ${y + 35}`
-      for (const card of cards) {
-        const rect = card.getBoundingClientRect()
-        const edge = rect.right - origin.left
-        const top = rect.top - origin.top + 49
-        // A small outside-corner loop, not a line through the project image.
-        d += ` L ${rail} ${top - 27} C ${rail - 5} ${top - 7} ${edge + 12} ${top - 11} ${edge} ${top} C ${edge + 12} ${top + 12} ${rail - 6} ${top + 12} ${rail} ${top + 40}`
-      }
-      setRoute(d)
-      update()
-    }
-    function schedule() {
-      cancelAnimationFrame(raf)
-      raf = requestAnimationFrame(measure)
-    }
-    measure()
-    const observer = new ResizeObserver(schedule)
-    observer.observe(document.body)
-    cards.forEach(card => observer.observe(card))
-    window.addEventListener("resize", schedule)
-    window.addEventListener("scroll", update, { passive: true })
-    return () => {
-      cancelAnimationFrame(raf)
-      observer.disconnect()
-      window.removeEventListener("resize", schedule)
-      window.removeEventListener("scroll", update)
-    }
-  }, [progress, reduced])
-
-  return (
-    <svg ref={svg} aria-hidden="true" className="project-thread">
-      {active && route && <>
-        <mask id="project-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="20000">
-          <motion.path d={route} fill="none" stroke="white" strokeWidth="9" style={{ pathLength: progress }} />
-        </mask>
-        <g mask="url(#project-cotton)"><CottonStrip curve={route} step={32} /></g>
-      </>}
-    </svg>
-  )
-}
-const processPath = "M32 195 C42 105 98 245 60 235 S16 85 96 96 S32 300 142 276 S115 105 195 118 S129 291 238 234 S221 123 284 175 S286 253 338 204 S348 158 389 192 S415 217 447 199 S466 175 496 196 C540 204 566 202 595 200 S675 194 745 198 S838 200 918 198 S1045 198 1170 198"
+export { ProjectThread } from "./ProjectThread"
+const processPath = "M260 195 C224 166 98 245 60 235 S16 85 96 96 S32 300 142 276 S115 105 195 118 S129 291 238 234 S221 123 284 175 S286 253 338 204 S348 158 389 192 S415 217 447 199 S466 175 496 196 C540 204 566 202 595 200 S675 194 745 198 S838 200 918 198 S1045 198 1170 198"
 const words = [
   { title: "Noise & uncertainty", sub: "Start with questions", x: "1.5%" },
   { title: "Patterns", sub: "Research & synthesis", x: "27%" },
@@ -322,23 +261,25 @@ export function ThreadProcess({ active }: { active: boolean }) {
   const canvas = useRef<HTMLDivElement>(null)
   const path = useRef<SVGPathElement>(null)
   const reduced = useReducedMotion()
-  const positionX = useMotionValue("2.667%")
+  const [settled, setSettled] = useState(false)
+  const finish = useCallback(() => setSettled(true), [])
+  const positionX = useMotionValue("21.667%")
   const positionY = useMotionValue("51.316%")
   const progress = useMotionValue(0)
   const { scrollYProgress } = useScroll({ target: canvas, offset: ["center 61%", "end 26%"] })
 
   useMotionValueEvent(scrollYProgress, "change", (value) => {
-    progress.set(reduced ? 1 : active ? value : 0)
+    progress.set(settled ? (reduced ? 1 : value) : 0)
     const node = path.current
     if (!node) return
     const total = node.getTotalLength()
-    const pos = node.getPointAtLength(total * Math.min(1, Math.max(0, reduced ? 1 : active ? value : 0)))
+    const pos = node.getPointAtLength(total * Math.min(1, Math.max(0, settled ? (reduced ? 1 : value) : 0)))
     positionX.set(`${pos.x / 12}%`)
     positionY.set(`${pos.y / 3.8}%`)
   })
 
   useEffect(() => {
-    const value = reduced ? 1 : active ? scrollYProgress.get() : 0
+    const value = settled ? (reduced ? 1 : scrollYProgress.get()) : 0
     progress.set(value)
     const node = path.current
     if (node) {
@@ -346,7 +287,7 @@ export function ThreadProcess({ active }: { active: boolean }) {
       positionX.set(`${pos.x / 12}%`)
       positionY.set(`${pos.y / 3.8}%`)
     }
-  }, [active, reduced, progress, scrollYProgress, positionX, positionY])
+  }, [active, settled, reduced, progress, scrollYProgress, positionX, positionY])
 
   return (
     <section id="design-process" aria-labelledby="process-heading" className="thread-process">
@@ -361,14 +302,14 @@ export function ThreadProcess({ active }: { active: boolean }) {
         </div>
         <div ref={canvas} className="process-canvas" aria-label="An illustration showing a tangled thread gradually becoming a straight line">
           <svg viewBox="0 0 1200 380" preserveAspectRatio="none" className="process-path">
-            <path d={processPath} fill="none" stroke="#e7ddd1" strokeWidth="3.8" strokeLinecap="round"/>
             <mask id="process-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="380">
               <motion.path ref={path} d={processPath} fill="none" stroke="white" strokeWidth="12" style={{ pathLength: progress }} />
             </mask>
             <g mask="url(#process-cotton)"><CottonStrip curve={processPath} width={6} step={10} /></g></svg>
-          <motion.div className="process-spool" aria-hidden="true"
+          <Landing active={active} settled={settled} reduced={!!reduced} finish={finish} />
+          <motion.div hidden={!settled} className="process-spool" aria-hidden="true"
             style={{ left: positionX, top: positionY, transform: "translate(-50%, -50%)" }}>
-            <SpoolIllustration process turns={progress} active={active && !reduced} />
+            <img src={restingBobbin} alt="" className="resting-bobbin" />
           </motion.div>
           {words.map((word, i) => <div key={word.title} className="process-word" style={{ left: word.x }}>
             <span className="process-number">0{i + 1}</span>

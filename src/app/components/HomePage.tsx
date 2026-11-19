@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { motion } from "motion/react"
 import { ArrowDown, ArrowRight } from "lucide-react"
 import { Link } from "../lib/router"
@@ -67,6 +67,8 @@ const SKILLS = [
 
 export function HomePage() {
   const [threadStarted, setThreadStarted] = useState(false)
+  const [arrived, setArrived] = useState(false)
+  const onArrival = useCallback(() => setArrived(true), [])
   const followTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => () => {
@@ -77,6 +79,7 @@ export function HomePage() {
     if (followTimer.current) clearTimeout(followTimer.current)
     if (!threadStarted) setThreadStarted(true)
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    if (reduced) setArrived(true)
     if (!threadStarted && !reduced) return
     followTimer.current = setTimeout(() => {
       document.getElementById("design-process")?.scrollIntoView({
@@ -88,9 +91,9 @@ export function HomePage() {
 
   return (
     <>
-      <div className="thread-story"><ProjectThread active={threadStarted} />
-      <Hero threadStarted={threadStarted} onFollowThread={followThread} />
-      <ThreadProcess active={threadStarted} />
+      <div className="thread-story"><ProjectThread active={arrived} />
+      <Hero threadStarted={threadStarted} onFollowThread={followThread} onArrival={onArrival} />
+      <ThreadProcess active={arrived} />
       <Highlights />
       <SelectedWork /></div>
       <About />
@@ -130,7 +133,7 @@ function MaskLine({
   )
 }
 
-function Hero({ threadStarted, onFollowThread }: { threadStarted: boolean; onFollowThread: () => void }) {
+function Hero({ threadStarted, onFollowThread, onArrival }: { threadStarted: boolean; onFollowThread: () => void; onArrival: () => void }) {
   return (
     <section className="relative isolate pt-10 lg:pt-12">
       <div
@@ -150,7 +153,7 @@ function Hero({ threadStarted, onFollowThread }: { threadStarted: boolean; onFol
               <MaskLine delay={0.18} className="italic text-[#2855D8]">
                 Agharia
               </MaskLine>
-              <HeroSpool active={threadStarted} />
+              <HeroSpool active={threadStarted} onArrival={onArrival} />
             </span>
           </h1>
 

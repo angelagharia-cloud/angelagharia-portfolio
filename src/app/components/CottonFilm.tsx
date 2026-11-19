@@ -1,3 +1,4 @@
+import landingAtlas from "../../imports/opt/process-landing.webp"
 import { useEffect, useRef } from "react"
 import film from "../../assets/cotton-flight.mp4"
 import tracking from "../../assets/cotton-flight.json"
@@ -15,6 +16,8 @@ void main() {
   float axisPosition = dot(p,axis)/max(reach,1.);
   // Leave both the anchored end and the photographed bobbin locally rigid.
   float blend = smoothstep(0.,max(1.,reach - 32.),axisPosition);
+  float rigid = 1. - smoothstep(44.,60.,distance(uv*vec2(480.,270.),head));
+  blend = max(blend,rigid);
   vec2 screen = origin + scale * p + shift * blend;
   // Retain a gravity belly when the take is registered to a shallower layout.
   float slack = sin(3.14159265*blend);
@@ -43,7 +46,13 @@ void main(){
   gl_FragColor = vec4(clean * a,a);
 }`
 
-export function CottonFilm({ onFallback }: { onFallback: () => void }) {
+export function CottonFilm({
+  onFallback,
+  onArrival,
+}: {
+  onFallback: () => void
+  onArrival: () => void
+}) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const canvas = ref.current!
@@ -52,6 +61,8 @@ export function CottonFilm({ onFallback }: { onFallback: () => void }) {
     const jacket = document.querySelector<HTMLElement>("#portrait-stage img")!
     const process = document.querySelector<HTMLElement>(".process-canvas")!
     const video = document.createElement("video")
+    const landingPreload = new Image()
+    landingPreload.src = landingAtlas
     video.muted = true
     video.playsInline = true
     const gl = canvas.getContext("webgl", {
@@ -153,10 +164,21 @@ export function CottonFilm({ onFallback }: { onFallback: () => void }) {
         y = a[1] + (b[1] - a[1]) * mix
       const o = anchor.getBoundingClientRect(),
         p = jacket.getBoundingClientRect(),
-        e = process.getBoundingClientRect()
+        e = process.querySelector(".landing-entry")!.getBoundingClientRect()
       const width =
         anchor.querySelector<HTMLElement>(".flight-spool")!.offsetWidth
-      const scale = (width * 0.83) / start[2]
+      const startScale = (width * 0.83) / start[2]
+      const arrivalWidth =
+        (process.querySelector<HTMLElement>(".cotton-landing")!.offsetWidth *
+          75) /
+        384
+      const travel = Math.max(
+        0,
+        (frame - tracking.contact) /
+          (tracking.points.length - 1 - tracking.contact),
+      )
+      const scale =
+        startScale + (arrivalWidth / last[2] - startScale) * travel * travel
       const cx = p.left + p.width * 0.24 - width * 0.38 - o.left,
         cy = p.top + p.height * 0.21 - o.top
       let dx: number, dy: number
@@ -179,11 +201,11 @@ export function CottonFilm({ onFallback }: { onFallback: () => void }) {
         const s = t * t
         dx =
           cx +
-          (e.left + (e.width * 32) / 1200 - o.left - cx) * s +
+          (e.left - o.left - cx) * s +
           scale * (x - hit[0] - s * (last[0] - hit[0]))
         dy =
           cy +
-          (e.top + (e.height * 195) / 380 - o.top - cy) * s +
+          (e.top - o.top - cy) * s +
           scale * (y - hit[1] - s * (last[1] - hit[1]))
       }
       if (!impacted && frame >= tracking.contact) {
@@ -233,6 +255,7 @@ export function CottonFilm({ onFallback }: { onFallback: () => void }) {
         video.pause()
         anchor.classList.add("flight-landed")
         canvas.hidden = true
+        onArrival()
         return
       }
       raf = requestAnimationFrame(draw)
@@ -268,6 +291,6 @@ export function CottonFilm({ onFallback }: { onFallback: () => void }) {
       gl!.deleteProgram(program)
       shaders.forEach((s) => gl!.deleteShader(s))
     }
-  }, [onFallback])
+  }, [onFallback, onArrival])
   return <canvas ref={ref} aria-hidden="true" className="cotton-film" />
 }
