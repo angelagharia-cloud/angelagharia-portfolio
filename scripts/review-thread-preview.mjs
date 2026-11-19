@@ -163,6 +163,12 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
       `${name}: cotton must wind back to its original process line: ${JSON.stringify(reversed)}`)
     await page.locator("#work").scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
+    // Reversing across the handoff intentionally resets the gravity film.
+    // When returning to Work, let the original cotton complete its fall
+    // before inspecting the final anchored geometry.
+    await page.waitForFunction(() =>
+      Number(document.querySelector(".project-thread")?.dataset.gravityProgress ?? 0) > .98,
+      undefined, { timeout: 5000 });
     // At the cards, the visible strand must still START at the original
     // fixed Clarity spool, not at a hidden, newly generated card lead.
     await page.waitForFunction(() => Boolean(
