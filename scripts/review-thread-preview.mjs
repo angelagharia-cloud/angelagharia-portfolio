@@ -27,6 +27,8 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
   await page.goto(base, { waitUntil: "domcontentloaded", timeout: 45_000 });
   await page.locator(".spool-trigger").waitFor({ state: "visible", timeout: 20_000 });
   await page.locator("#design-process .landing-entry").waitFor({ state: "attached" });
+  // Let the typographic intro and font measurements settle before judging layout.
+  await page.waitForTimeout(1800);
   await page.screenshot({ path: `${output}/${name}-initial.png`, fullPage: true, animations: "disabled" });
 
   const geometry = await page.evaluate(() => {
@@ -57,11 +59,24 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
     await page.locator(".spool-trigger").click();
     await page.waitForTimeout(850);
     await page.screenshot({ path: `${output}/${name}-spool-release.png`, fullPage: true });
+    await page.screenshot({ path: `${output}/${name}-release-viewport.png` });
+    if (viewport.width < 640) {
+      const collision = await page.evaluate(() => {
+        const title = document.querySelector(".hero-copy h1").getBoundingClientRect();
+        const button = document.querySelector(".work-shortcut").getBoundingClientRect();
+        const overlapX = Math.max(0, Math.min(title.right, button.right) - Math.max(title.left, button.left));
+        const overlapY = Math.max(0, Math.min(title.bottom, button.bottom) - Math.max(title.top, button.top));
+        return overlapX * overlapY;
+      });
+      assert(collision < 40, `Mobile title/button collision during reel flight: ${collision}px²`);
+    }
     await page.waitForTimeout(3500);
     await page.screenshot({ path: `${output}/${name}-step-one-arrival.png`, fullPage: true });
+    await page.screenshot({ path: `${output}/${name}-arrival-viewport.png` });
     await page.locator("#work").scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${output}/${name}-projects.png`, fullPage: true });
+    await page.screenshot({ path: `${output}/${name}-projects-viewport.png` });
   }
   await context.close();
   assert.equal(pageErrors.length, 0, `${name}: browser errors: ${pageErrors.join(" | ")}`);
