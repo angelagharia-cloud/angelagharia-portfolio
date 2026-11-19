@@ -223,7 +223,8 @@ export function ThreadProcess({ active }: { active: boolean }) {
   const section = useRef<HTMLElement>(null)
   const path = useRef<SVGPathElement>(null)
   const reduced = useReducedMotion()
-  const [point, setPoint] = useState({ x: 32, y: 195 })
+  const positionX = useMotionValue("2.667%")
+  const positionY = useMotionValue("51.316%")
   const progress = useMotionValue(0)
   const { scrollYProgress } = useScroll({ target: section, offset: ["start 86%", "end 38%"] })
 
@@ -233,12 +234,20 @@ export function ThreadProcess({ active }: { active: boolean }) {
     if (!node) return
     const total = node.getTotalLength()
     const pos = node.getPointAtLength(total * Math.min(1, Math.max(0, reduced ? 1 : active ? value : 0)))
-    setPoint({ x: pos.x, y: pos.y })
+    positionX.set(`${pos.x / 12}%`)
+    positionY.set(`${pos.y / 3.8}%`)
   })
 
   useEffect(() => {
-    progress.set(reduced ? 1 : active ? scrollYProgress.get() : 0)
-  }, [active, reduced, progress, scrollYProgress])
+    const value = reduced ? 1 : active ? scrollYProgress.get() : 0
+    progress.set(value)
+    const node = path.current
+    if (node) {
+      const pos = node.getPointAtLength(node.getTotalLength() * value)
+      positionX.set(`${pos.x / 12}%`)
+      positionY.set(`${pos.y / 3.8}%`)
+    }
+  }, [active, reduced, progress, scrollYProgress, positionX, positionY])
 
   return (
     <section ref={section} id="design-process" aria-labelledby="process-heading" className="thread-process">
@@ -258,7 +267,7 @@ export function ThreadProcess({ active }: { active: boolean }) {
               strokeLinecap="round" style={{ pathLength: progress }} />
           </svg>
           <div className="process-spool" aria-hidden="true"
-            style={{ left: `${point.x / 1200 * 100}%`, top: `${point.y / 380 * 100}%`, transform: "translate(-50%, -50%)" }}>
+            style={{ left: positionX, top: positionY, transform: "translate(-50%, -50%)" }}>
             <SpoolIllustration turns={progress} active={active && !reduced} />
           </div>
           {words.map((word, i) => <div key={word.title} className="process-word" style={{ left: word.x }}>
