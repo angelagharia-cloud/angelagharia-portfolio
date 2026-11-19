@@ -1,0 +1,5 @@
+# This repository stores the turntable's WebP frames in GitHub LFS.
+# Netlify must fetch the real assets rather than publishing 130-byte pointer files.
+# Keep the site's existing build command, publish directory and deploy settings.
+[build.environment]
+  GIT_LFS_ENABLED = "true"
