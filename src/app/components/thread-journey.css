@@ -454,3 +454,16 @@
   .hero-composition:has(.portrait-stage[data-open="true"]) .hero-copy > .t-lead { grid-row:5; }
   .hero-composition:has(.portrait-stage[data-open="true"]) .hero-copy > dl { grid-row:6; }
 }
+
+/* During the Clarity handoff the same textile is painted as ONE world-space
+   strand, from Noise all the way through the three cards. Switch the source
+   layer and the continuation in the same render; do not show two fibres. */
+.project-thread .continuous-cotton-fibre { visibility: hidden; }
+.project-thread[data-handoff="true"] .continuous-cotton-fibre { visibility: visible; }
+.thread-story:has(.project-thread[data-handoff="true"]) .process-path > g {
+  visibility: hidden;
+}
+/* Legacy per-card lead is always suppressed. Only the joined fibre is drawn;
+   the existing card stitches remain as local material details. */
+.project-thread .catch-leading-fibre { visibility: hidden; }
+/* Holes and stitch-over-card detail still sit above the shared cotton. */
