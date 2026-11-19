@@ -281,3 +281,51 @@
   .process-canvas { height: 285px; }
   .process-intro { margin-top: 2rem; }
 }
+
+.work-shortcut {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .7rem .4rem;
+  color: #44403a;
+  font-weight: 550;
+  font-size: .9rem;
+}
+.work-shortcut:hover, .work-shortcut:focus-visible { color: #2855d8; text-decoration: underline; }
+.process-track {
+  --stage-height: clamp(280px, 43svh, 480px);
+  position: relative;
+  height: max(calc(var(--stage-height) + 50svh), 94svh);
+  margin-top: clamp(1.5rem, 3vw, 3rem);
+}
+.process-track .process-canvas {
+  position: sticky;
+  top: max(4.2rem, calc(72svh - var(--stage-height)));
+  height: var(--stage-height);
+  margin: 0;
+}
+.process-rolling { position: absolute; inset: 0; background-size: 800% 600%; background-repeat: no-repeat; }
+.process-footer { justify-content: flex-end; }
+@media (max-width: 1023px) {
+  .hero-actions { flex-direction: column; gap: .15rem; }
+}
+@media (prefers-reduced-motion: reduce), (max-height: 500px) {
+  .process-track { height: auto; }
+  .process-track .process-canvas { position: relative; top: auto; }
+}
+.landing-layer { position: absolute; inset: 0; pointer-events: none; }
+.process-question { position: absolute; top: -.5rem; left: 1.5%; }
+.process-question p { font: 400 clamp(1.55rem,3vw,3rem)/1.06 "DM Serif Display",Georgia,serif; color: #24201d; letter-spacing: -.035em; }
+@media (max-width:640px) {
+  .process-question { left: 0; top: -.55rem; }
+  .process-question p { max-width: 19ch; }
+}
+@media (prefers-reduced-motion:no-preference) {
+  .process-question { animation: stage-caption-in 220ms ease-out both; }
+  @keyframes stage-caption-in { from { opacity: .2; transform: translateY(3px); } to { opacity: 1; transform: translateY(0); } }
+}
+@media (max-width:640px) {
+  .process-canvas { --loop-depth: .53; }
+  .process-path { transform: scaleY(var(--loop-depth)); transform-origin: 50% 52.1053%; }
+  .process-question p { max-width: none; }
+}

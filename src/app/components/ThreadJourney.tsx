@@ -1,9 +1,10 @@
 import { Landing } from "./Landing"
+import studioRoll from "../../assets/cotton-studio-small.webp"
 import restingBobbin from "../../imports/opt/landing-bobbin.webp"
 import { CottonFilm } from "./CottonFilm"
 import { CottonStrip } from "./CottonStrip"
 import { useCallback, useEffect, useRef, useState } from "react"
-import { animate, type MotionValue, motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useTransform } from "motion/react"
+import { animate, type MotionValue, motion, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from "motion/react"
 import { Link } from "../lib/router"
 import "./thread-journey.css"
 
@@ -247,16 +248,16 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
 }
 
 export { ProjectThread } from "./ProjectThread"
-const processPath = "M260 195 C224 166 98 245 60 235 S16 85 96 96 S32 300 142 276 S115 105 195 118 S129 291 238 234 S221 123 284 175 S286 253 338 204 S348 158 389 192 S415 217 447 199 S466 175 496 196 C540 204 566 202 595 200 S675 194 745 198 S838 200 918 198 S1045 198 1170 198"
+const processPath = "M260 195 C210 180 105 260 62 224 C12 184 39 82 89 94 C145 107 57 282 124 278 C199 274 219 104 164 112 C115 120 155 257 214 241 C268 227 305 142 267 141 C234 140 259 225 306 220 C348 216 349 165 376 172 C397 178 393 209 420 205 C448 201 449 184 473 189 C497 194 519 204 554 201 S639 193 702 197 S812 200 918 198 S1050 198 1170 198"
 const words = [
-  { title: "Noise & uncertainty", sub: "Start with questions", x: "1.5%" },
-  { title: "Patterns", sub: "Research & synthesis", x: "27%" },
-  { title: "Insights", sub: "Concept & prototype", x: "51%" },
-  { title: "Clarity & focus", sub: "Design", x: "79%" },
+  { title: "Noise & uncertainty", sub: "Start with questions", question: "What gets in the way?", x: "1.5%" },
+  { title: "Patterns", sub: "Research & synthesis", question: "What keeps coming up?", x: "27%" },
+  { title: "Insights", sub: "Concept & prototype", question: "Which idea is worth testing?", x: "51%" },
+  { title: "Clarity & focus", sub: "Design", question: "What can we simplify?", x: "79%" },
 ]
 
 export function ThreadProcess({ active }: { active: boolean }) {
-  const canvas = useRef<HTMLDivElement>(null)
+  const track = useRef<HTMLDivElement>(null)
   const path = useRef<SVGPathElement>(null)
   const reduced = useReducedMotion()
   const [stage, setStage] = useState(0)
@@ -265,52 +266,73 @@ export function ThreadProcess({ active }: { active: boolean }) {
   const positionX = useMotionValue("21.667%")
   const positionY = useMotionValue("51.316%")
   const progress = useMotionValue(0)
-  const { scrollYProgress } = useScroll({ target: canvas, offset: ["center 61%", "end 26%"] })
+  const rollFrame = useMotionValue("0% 0%")
+  const spinOpacity = useTransform(progress, [0, .035], [0, 1])
+  const loopOpacity = useTransform(progress, [0, .045], [1, 0])
+  const restOpacity = useTransform(spinOpacity, opacity => reduced ? 1 : 1 - opacity)
+  const { scrollYProgress } = useScroll({ target: track, offset: ["start 28%", "end 72%"] })
 
-  useMotionValueEvent(scrollYProgress, "change", (value) => {
-    progress.set(settled ? (reduced ? 1 : value) : 0)
-    const node = path.current
-    if (!node) return
-    const total = node.getTotalLength()
-    const pos = node.getPointAtLength(total * Math.min(1, Math.max(0, settled ? (reduced ? 1 : value) : 0)))
-    setStage(pos.x < 324 ? 0 : pos.x < 612 ? 1 : pos.x < 948 ? 2 : 3)
-    positionX.set(`${pos.x / 12}%`)
-    positionY.set(`${pos.y / 3.8}%`)
-  })
+  const easedScroll = useSpring(scrollYProgress, { stiffness: 320, damping: 36, mass: .48, restDelta: .0001 })
 
   useEffect(() => {
-    const value = settled ? (reduced ? 1 : scrollYProgress.get()) : 0
-    progress.set(value)
-    const node = path.current
-    if (node) {
-      const pos = node.getPointAtLength(node.getTotalLength() * value)
-      setStage(pos.x < 324 ? 0 : pos.x < 612 ? 1 : pos.x < 948 ? 2 : 3)
-    positionX.set(`${pos.x / 12}%`)
-      positionY.set(`${pos.y / 3.8}%`)
+    const node = path.current!
+    const total = node.getTotalLength()
+    // The tangle is much longer than the straight portion. Map the same
+    // scroll distance to each chapter so the last two stages remain legible.
+    const stops = [0, ...[324, 612, 948].map(x => {
+      let lo = 0, hi = total
+      for (let i = 0; i < 20; i++) {
+        const mid = (lo + hi) / 2
+        if (node.getPointAtLength(mid).x < x) lo = mid
+        else hi = mid
+      }
+      return hi
+    }), total]
+    function draw(value: number) {
+      const phase = settled ? (reduced ? 4 : Math.max(0, Math.min(4, value * 4))) : 0
+      const chapter = Math.min(3, Math.floor(phase))
+      const distance = stops[chapter] + (phase - chapter) * (stops[chapter + 1] - stops[chapter])
+      const pos = node.getPointAtLength(distance)
+      setStage(chapter)
+      positionX.set(String(pos.x / 12) + "%")
+      positionY.set(`calc(52.1053% + ${(pos.y - 198) / 3.8}% * var(--loop-depth, 1))`)
+      progress.set(distance / total)
+      // Rock through the studio take in both directions without a cut
+      // between its stationary first and last frames.
+      const cycle = distance / 210
+      const frame = Math.round(47 * (.5 - .5 * Math.cos(Math.PI * cycle)))
+      rollFrame.set(String((frame % 8) * 100 / 7) + "% " + String(Math.floor(frame / 8) * 20) + "%")
     }
-  }, [active, settled, reduced, progress, scrollYProgress, positionX, positionY])
+    const source = reduced ? scrollYProgress : easedScroll
+    draw(source.get())
+    return source.on("change", draw)
+  }, [settled, reduced, scrollYProgress, easedScroll, positionX, positionY, progress, rollFrame])
 
   return (
     <section id="design-process" aria-labelledby="process-heading" className="thread-process">
       <div className="shell">
         <div className="process-topline">
           <span className="t-eyebrow text-neutral-500">The thread of reason / How I design</span>
-          <span className="t-eyebrow text-neutral-500">From complexity to clarity</span>
         </div>
         <div className="process-intro">
           <h2 id="process-heading" className="t-h2 text-neutral-950">Making sense of the <em>mess.</em></h2>
           <p className="max-w-sm text-sm leading-relaxed text-neutral-600">Design rarely starts with a straight line. I explore, connect and refine until the right solution becomes clear.</p>
         </div>
-        <div ref={canvas} className="process-canvas" aria-label="An illustration showing a tangled thread gradually becoming a straight line">
+        <div className="process-track" ref={track}>
+        <div className="process-canvas" aria-label="An illustration showing a tangled thread gradually becoming a straight line">
+          <div className="process-question" key={stage}>
+            <p>{words[stage].question}</p>
+          </div>
           <svg viewBox="0 0 1200 380" preserveAspectRatio="none" className="process-path">
             <mask id="process-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="380">
               <motion.path ref={path} d={processPath} fill="none" stroke="white" strokeWidth="12" style={{ pathLength: progress }} />
             </mask>
-            <g mask="url(#process-cotton)"><CottonStrip curve={processPath} width={6} step={10} /></g></svg>
-          <Landing active={active} settled={settled} reduced={!!reduced} finish={finish} />
+            <g mask="url(#process-cotton)"><CottonStrip curve={processPath} width={4.4} step={8} /></g></svg>
+          <motion.div className="landing-layer" style={{ opacity: loopOpacity }}><Landing active={active} settled={settled} reduced={!!reduced} finish={finish} /></motion.div>
           <motion.div hidden={!settled} className="process-spool" aria-hidden="true"
             style={{ left: positionX, top: positionY, transform: "translate(-50%, -50%)" }}>
-            <img src={restingBobbin} alt="" className="resting-bobbin" />
+            <motion.img src={restingBobbin} alt="" className="resting-bobbin" style={{ opacity: restOpacity }} />
+            {settled && !reduced && <motion.div className="process-rolling" style={{ backgroundImage: `url(${studioRoll})`, backgroundPosition: rollFrame, opacity: spinOpacity }} />}
           </motion.div>
           {words.map((word, i) => <div key={word.title} className="process-word" data-current={settled && stage === i} style={{ left: word.x }}>
             <span className="process-number">0{i + 1}</span>
@@ -318,7 +340,8 @@ export function ThreadProcess({ active }: { active: boolean }) {
             <small>{word.sub}</small>
           </div>)}
         </div>
-        <div className="process-footer"><span>Exploration is part of the process.</span><Link to="home" section="work">See where it leads <span aria-hidden="true">↘</span></Link></div>
+        </div>
+        <div className="process-footer"><Link to="home" section="work">Explore selected work <span aria-hidden="true">↘</span></Link></div>
       </div>
     </section>
   )

@@ -187,17 +187,13 @@ function Hero({ take, arrived, threadStarted, onFollowThread, onArrival }: { tak
             {...intro(0.58)}
             className="hero-actions mt-9 flex flex-wrap items-center gap-3"
           >
-            <Link to="home" section="work" className={`${btn.primary} thread-primary-cta`}>
-              View selected work
-              <ArrowDown
-                className="h-4 w-4 transition-transform duration-300 ease-out-quint group-hover:translate-y-0.5"
-                strokeWidth={1.75}
-              />
-            </Link>
-            <button type="button" onClick={onFollowThread} aria-disabled={threadStarted && !arrived} className={`${btn.secondary} thread-secondary-cta`}>
+            <button type="button" onClick={onFollowThread} aria-disabled={threadStarted && !arrived} className={`${btn.primary} thread-primary-cta`}>
               {arrived && threadStarted ? "Replay the thread" : "Follow the thread"}
               <ArrowDown className="h-4 w-4" aria-hidden="true" strokeWidth={1.75} />
             </button>
+            <Link to="home" section="work" className="work-shortcut">
+              Selected work <ArrowDown aria-hidden="true" size={14} />
+            </Link>
           </motion.div>
         </div>
 

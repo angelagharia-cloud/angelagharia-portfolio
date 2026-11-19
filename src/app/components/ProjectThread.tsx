@@ -119,8 +119,9 @@ export function ProjectThread({ active }: { active: boolean }) {
       }
       const origin = layer.getBoundingClientRect().top
       const box = canvas.getBoundingClientRect()
-      const from = box.top + (box.height * 198) / 380 - origin
-      const distancePastClarity = innerHeight * 0.26 - box.bottom
+      const trackBottom = canvas.parentElement!.getBoundingClientRect().bottom
+      const from = trackBottom - box.height + (box.height * 198) / 380 - origin
+      const distancePastClarity = innerHeight * 0.72 - trackBottom
       if (distancePastClarity <= 0) {
         cursor.set(from)
         return
@@ -142,7 +143,7 @@ export function ProjectThread({ active }: { active: boolean }) {
         box = canvas.getBoundingClientRect()
       const rail = Math.min(origin.width - 6, box.right - origin.left + 12)
       let px = box.left - origin.left + box.width * 0.975,
-        py = box.top - origin.top + (box.height * 198) / 380
+        py = canvas.parentElement!.getBoundingClientRect().bottom - box.height - origin.top + (box.height * 198) / 380
       const result: Catch[] = []
       cards.forEach((card, i) => {
         if (!card) return
