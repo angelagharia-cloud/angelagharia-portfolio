@@ -27,15 +27,20 @@ async function review(label, viewport, reducedMotion="no-preference") {
     window.scrollY+node.getBoundingClientRect().bottom-window.innerHeight*.72);
   await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),releaseScroll-8);
   await page.waitForTimeout(150);
+  // Read the actual visible continuous yarn. The per-card #catch-line mask is
+  // intentionally hidden, starts at the card, and is NOT the Clarity source.
+  await page.screenshot({path:output+"/"+label+"-pre-handoff.png"});
   const seam = await page.evaluate(()=>{
     const svg=document.querySelector(".project-thread"), box=svg.getBoundingClientRect();
-    const path=document.querySelector("#catch-line-creative-key path[d]");
-    const arr=path.getAttribute("d").match(/^M\s*([-\d.]+)\s+([-\d.]+)/);
+    const path=document.querySelector(".continuous-cotton-fibre > path[d]");
+    const arr=path?.getAttribute("d")?.match(/^M\\s*([-\\d.]+)\\s+([-\\d.]+)/);
     const exit=document.querySelector(".process-exit").getBoundingClientRect();
     const track=document.querySelector(".process-track").getBoundingClientRect();
     const canvas=document.querySelector(".process-canvas").getBoundingClientRect();
-    return {dx:Math.abs(Number(arr[1])-(exit.left-box.left)),
-      dy:Math.abs(Number(arr[2])-(exit.top+track.bottom-canvas.bottom-box.top))};
+    return {dx:arr?Math.abs(Number(arr[1])-(exit.left-box.left)):Infinity,
+      dy:arr?Math.abs(Number(arr[2])-(exit.top+track.bottom-canvas.bottom-box.top)):Infinity,
+      source:arr?.slice(1), exit:{x:exit.left-box.left,
+        y:exit.top+track.bottom-canvas.bottom-box.top}};
   });
   assert(seam.dx<2 && seam.dy<2,label+": cotton from process must meet work path "+JSON.stringify(seam));
 
