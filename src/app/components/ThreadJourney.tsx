@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { animate, type MotionValue, motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react"
+import { animate, type MotionValue, motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useTransform } from "motion/react"
 import "./thread-journey.css"
 
 import spoolPoster from "../../assets/cotton-poster.webp"
@@ -40,88 +40,176 @@ function SpoolIllustration({ turns, active }: { turns: MotionValue<number>; acti
   }, [turns, active])
   return <span ref={element} className="spool-frames"><img src={spoolPoster} className="spool-poster" alt="" draggable={false} /></span>
 }
+type FlightRoute = { d: string; contact: number; rebound: number }
+
+/**
+ * The line and the photographed spool share ONE motion value so the cotton
+ * never draws ahead of, or behind, the moving object.
+ */
 export function HeroSpool({ active }: { active: boolean }) {
   const anchor = useRef<HTMLSpanElement>(null)
-  const [route, setRoute] = useState("")
-  const turns = useMotionValue(0)
+  const [route, setRoute] = useState<FlightRoute | null>(null)
+  const flight = useMotionValue(0)
+  const distance = useTransform(flight, value => `${value * 100}%`)
+  const turns = useTransform(flight, value => value * 2.6)
   const reduced = useReducedMotion()
-  useEffect(() => {
-    if (!active || reduced) return
-    const controls = animate(turns, 1, { duration: 1.65, ease: "linear" })
-    return () => controls.stop()
-  }, [active, reduced, turns])
+
   useEffect(() => {
     const origin = anchor.current
     const portrait = document.querySelector("#portrait-stage img")
     const process = document.querySelector(".process-canvas")
     if (!origin || !portrait || !process) return
+    let raf = 0
     function measure() {
       const a = origin!.getBoundingClientRect()
       const p = portrait!.getBoundingClientRect()
       const end = process!.getBoundingClientRect()
+      // Near the outer jacket/shoulder, NEVER the face or facts controls.
       const x = p.left + p.width * .29 - a.left
       const y = p.top + p.height * .38 - a.top
       const ex = end.left + end.width * 32 / 1200 - a.left
       const ey = end.top + end.height * 195 / 380 - a.top
-      setRoute(`M 0 0 Q 18 -2 32 4 Q ${(32+x)/2} 7 ${x} ${y} Q ${x+22} ${y-54} ${x+38} ${y-17} C ${x+74} ${y+85} ${ex} ${ey-108} ${ex} ${ey}`)
+
+      // Three connected beats: roll off the type → soft shoulder contact
+      // → a damped rebound → falling into the research-process canvas.
+      const approach = `M 0 0 C 14 -11 46 0 51 13 C ${x * .42} 7 ${x - 36} ${y - 40} ${x} ${y}`
+      const bounce = ` C ${x + 7} ${y - 25} ${x + 41} ${y - 54} ${x + 57} ${y - 29}`
+      const fall = ` C ${x + 113} ${y + 96} ${ex - 88} ${ey - 175} ${ex} ${ey}`
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path")
+      path.setAttribute("d", approach + bounce + fall)
+      const total = path.getTotalLength()
+      path.setAttribute("d", approach)
+      const contact = path.getTotalLength() / total
+      path.setAttribute("d", approach + bounce)
+      const rebound = path.getTotalLength() / total
+      if (Number.isFinite(total) && total > 0) {
+        setRoute({ d: approach + bounce + fall, contact, rebound })
+      }
+    }
+    function schedule() {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(measure)
     }
     measure()
-    const observer = new ResizeObserver(measure)
+    const observer = new ResizeObserver(schedule)
     observer.observe(portrait)
     observer.observe(process)
     observer.observe(document.body)
-    return () => observer.disconnect()
+    window.addEventListener("resize", schedule)
+    return () => {
+      cancelAnimationFrame(raf)
+      observer.disconnect()
+      window.removeEventListener("resize", schedule)
+    }
   }, [])
-  return <span ref={anchor} className="spool-origin" aria-hidden="true">
-    {route && active && <svg className="flight-thread"><motion.path d={route} fill="none" stroke="#ab9272" strokeWidth="1.5" initial={{pathLength: reduced ? 1 : 0}} animate={{pathLength:1}} transition={{duration:reduced ? 0 : 1.65, ease:"linear"}} /></svg>}
-    <motion.span className="flight-spool" style={{offsetPath: route ? `path("${route}")` : undefined, offsetRotate:"0deg"}} initial={false}
-      animate={{offsetDistance:active && !reduced ? "100%" : "0%", opacity:active ? [1,1,0] : 1}}
-      transition={{offsetDistance:{duration:1.65,ease:"linear"},opacity:{duration:reduced ? 0 : 1.65,times:[0,.98,1]}}}>
-      <SpoolIllustration turns={turns} active={!reduced && Boolean(route)} />
-    </motion.span>
-  </span>
+
+  useEffect(() => {
+    if (!active || !route || reduced) return
+    flight.set(0)
+    const controls = animate(
+      flight,
+      [0, route.contact, route.rebound, 1],
+      {
+        times: [0, .49, .66, 1],
+        duration: 1.9,
+        ease: ["easeIn", "easeOut", "easeIn"],
+      },
+    )
+    return () => controls.stop()
+  }, [active, route?.d, reduced, flight])
+
+  return (
+    <span ref={anchor} className="spool-origin" aria-hidden="true">
+      {route && active && !reduced && (
+        <svg className="flight-thread">
+          <motion.path
+            d={route.d}
+            fill="none"
+            stroke="#a78c6a"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+            style={{ pathLength: flight }}
+          />
+        </svg>
+      )}
+      <motion.span
+        className="flight-spool"
+        style={{
+          offsetPath: route ? `path("${route.d}")` : undefined,
+          offsetDistance: distance,
+          offsetRotate: "0deg",
+        }}
+        initial={false}
+        animate={active && !reduced
+          ? { opacity: [1, 1, 1, 0], rotate: [0, -9, 12, -14], scale: [1, 1.02, .94, .84] }
+          : { opacity: 1, rotate: 0, scale: 1 }}
+        transition={{ duration: reduced ? 0 : 1.9, times: [0, .49, .66, 1], ease: "easeInOut" }}
+      >
+        <SpoolIllustration turns={turns} active={!reduced && Boolean(route)} />
+      </motion.span>
+    </span>
+  )
 }
 
-export function ProjectThread({active}:{active:boolean}) {
+/** The continuous thread hooks around the corners of three real case studies. */
+export function ProjectThread({ active }: { active: boolean }) {
   const svg = useRef<SVGSVGElement>(null)
-  const [route,setRoute] = useState("")
-  const work = useRef<HTMLElement | null>(null)
+  const [route, setRoute] = useState("")
   const progress = useMotionValue(0)
   const reduced = useReducedMotion()
+
   useEffect(() => {
     const layer = svg.current
     const canvas = document.querySelector(".process-canvas")
-    work.current = document.getElementById("work")
-    const cards = work.current?.querySelectorAll("article")
-    if (!layer || !canvas || !cards?.length) return
+    const cards = Array.from(document.querySelectorAll<HTMLElement>("#work article")).slice(0, 3)
+    if (!layer || !canvas || cards.length < 3) return
+    let raf = 0
+    function update() {
+      const start = canvas!.getBoundingClientRect().bottom
+      const end = cards[2].getBoundingClientRect().top + 52
+      const distance = Math.max(1, end - start)
+      progress.set(reduced ? 1 : Math.max(0, Math.min(1, (innerHeight * .78 - start) / distance)))
+    }
     function measure() {
       const origin = layer!.getBoundingClientRect()
       const start = canvas!.getBoundingClientRect()
-      const x = start.left-origin.left+start.width*.975
-      const y = start.top-origin.top+start.height*198/380
-      const rail = Math.min(origin.width-5,start.right-origin.left+12)
-      let d = `M${x} ${y} Q${rail} ${y} ${rail} ${y+35}`
-      for (const card of Array.from(cards!).slice(0,2)) {
+      const x = start.left - origin.left + start.width * .975
+      const y = start.top - origin.top + start.height * 198 / 380
+      const rail = Math.min(origin.width - 10, start.right - origin.left + 12)
+      let d = `M ${x} ${y} Q ${rail} ${y} ${rail} ${y + 35}`
+      for (const card of cards) {
         const rect = card.getBoundingClientRect()
-        const edge = rect.right-origin.left
-        const top = rect.top-origin.top+42
-        d += ` V${top-12} Q${rail} ${top} ${edge} ${top} Q${rail} ${top} ${rail} ${top+12}`
+        const edge = rect.right - origin.left
+        const top = rect.top - origin.top + 49
+        // A small outside-corner loop, not a line through the project image.
+        d += ` L ${rail} ${top - 27} C ${rail - 5} ${top - 7} ${edge + 12} ${top - 11} ${edge} ${top} C ${edge + 12} ${top + 12} ${rail - 6} ${top + 12} ${rail} ${top + 40}`
       }
       setRoute(d)
       update()
     }
-    function update() {
-      const a=canvas!.getBoundingClientRect().bottom
-      const b=cards![1].getBoundingClientRect().top+54
-      progress.set(reduced ? 1 : Math.max(0,Math.min(1,(innerHeight*.8-a)/Math.max(1,b-a))))
+    function schedule() {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(measure)
     }
     measure()
-    const observer = new ResizeObserver(measure)
+    const observer = new ResizeObserver(schedule)
     observer.observe(document.body)
-    window.addEventListener("scroll",update,{passive:true})
-    return () => { observer.disconnect(); window.removeEventListener("scroll",update) }
-  },[progress,reduced])
-  return <svg ref={svg} aria-hidden="true" className="project-thread">{active && <motion.path d={route} fill="none" stroke="#766955" strokeWidth="1.5" style={{pathLength:progress}}/>}</svg>
+    cards.forEach(card => observer.observe(card))
+    window.addEventListener("resize", schedule)
+    window.addEventListener("scroll", update, { passive: true })
+    return () => {
+      cancelAnimationFrame(raf)
+      observer.disconnect()
+      window.removeEventListener("resize", schedule)
+      window.removeEventListener("scroll", update)
+    }
+  }, [progress, reduced])
+
+  return (
+    <svg ref={svg} aria-hidden="true" className="project-thread">
+      {active && <motion.path d={route} fill="none" stroke="#987f60" strokeWidth="1.6" strokeLinecap="round" style={{ pathLength: progress }} />}
+    </svg>
+  )
 }
 const processPath = "M32 195 C42 105 98 245 60 235 S16 85 96 96 S32 300 142 276 S115 105 195 118 S129 291 238 234 S221 123 284 175 S286 253 338 204 S348 158 389 192 S415 217 447 199 S466 175 496 196 C540 204 566 202 595 200 S675 194 745 198 S838 200 918 198 S1045 198 1170 198"
 const words = [
