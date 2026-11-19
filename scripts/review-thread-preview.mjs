@@ -78,7 +78,7 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
     // scroll range, not merely wheel a few pixels from the hero. The reel
     // auto-scroll can arrive at different positions on tall and short screens.
     const samples = [];
-    await page.locator('.landing-entry[data-settled="true"]').waitFor({ timeout: 15000 });
+    await page.waitForFunction(() => document.querySelector('.landing-entry')?.getAttribute('data-settled') === 'true', { timeout: 15000 });
     const snapshot = () => page.evaluate(() => {
       const node = document.querySelector("#process-cotton path");
       const spool = document.querySelector(".process-spool");
