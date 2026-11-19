@@ -235,3 +235,8 @@
   visibility: visible;
   opacity: var(--poster-opacity, 1);
 }
+@media (min-width: 1800px) {
+  .thread-story > section:first-of-type > .shell {
+    min-height: min(calc(100svh - 4rem), 58rem);
+  }
+}
