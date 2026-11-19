@@ -514,3 +514,21 @@
 /* The fibre hangs in front of the section background, never in front of a
    clickable card or its project content. */
 .thread-story #work article { isolation: isolate; }
+
+/* Phone-sized process labels must not share the falling fibre's exit gutter.
+   Let Clarity wrap within its own column; the thread stays outside it. */
+@media (max-width: 640px) {
+  .process-word { top: 73%; }
+  .process-word:last-child {
+    left: 72% !important;
+    width: 19%;
+    max-width: 19%;
+    padding-right: 0;
+  }
+  .process-word:last-child strong {
+    display: block;
+    max-width: 8ch;
+    line-height: 1.2;
+    overflow-wrap: normal;
+  }
+}
