@@ -531,4 +531,6 @@
     line-height: 1.2;
     overflow-wrap: normal;
   }
+  /* Avoid a third text line touching the divider on very narrow screens. */
+  .process-word[data-current="true"] small { display: none; }
 }
