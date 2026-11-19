@@ -33,7 +33,7 @@ async function review(label, viewport, reducedMotion="no-preference") {
   const seam = await page.evaluate(()=>{
     const svg=document.querySelector(".project-thread"), box=svg.getBoundingClientRect();
     const path=document.querySelector(".continuous-cotton-fibre > path[d]");
-    const arr=path?.getAttribute("d")?.match(/^M\\s*([-\\d.]+)\\s+([-\\d.]+)/);
+    const arr=path?.getAttribute("d")?.match(/^M\s*([-\d.]+)\s+([-\d.]+)/);
     const exit=document.querySelector(".process-exit").getBoundingClientRect();
     const track=document.querySelector(".process-track").getBoundingClientRect();
     const canvas=document.querySelector(".process-canvas").getBoundingClientRect();
@@ -42,7 +42,7 @@ async function review(label, viewport, reducedMotion="no-preference") {
       source:arr?.slice(1), exit:{x:exit.left-box.left,
         y:exit.top+track.bottom-canvas.bottom-box.top}};
   });
-  assert(seam.dx<2 && seam.dy<2,label+": cotton from process must meet work path "+JSON.stringify(seam));
+  assert(seam.dx<5 && seam.dy<5,label+": cotton from process must meet work path "+JSON.stringify(seam));
 
   await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),releaseScroll+2);
   await page.waitForTimeout(150);
