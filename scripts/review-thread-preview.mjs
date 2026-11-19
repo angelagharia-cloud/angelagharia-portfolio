@@ -90,7 +90,7 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
       })
       assert(result.visible && result.offset < (label === "held" ? 6 : 3), JSON.stringify(result))
       await page.screenshot({path:output + "/" + name + "-handoff-" + label + ".png"})
-      return result.paid
+      return result
     }
     const scroll = delta => page.evaluate(y => window.scrollTo({top:y, behavior:"instant"}), release + delta)
     await scroll(-2)
