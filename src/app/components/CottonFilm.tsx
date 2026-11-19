@@ -185,11 +185,16 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
       y += offset
       const push = smooth((u - .10) / .72) * (1 - smooth((time - rollEnd * .85) / (hit + .22 - rollEnd * .85)))
         * (1 - smooth((now - disengaged) / 300))
-      cameraScale = 1 + push * (w < 640 ? .39 : .72)
+      // On phones the old camera push magnified the surname into the
+      // Selected Work button and pulled the biography under the jacket.
+      // Keep the real spool / cotton movement, but preserve the legible
+      // two-column composition instead of zooming the whole scene.
+      const cameraPush = w < 640 ? 0 : push
+      cameraScale = 1 + cameraPush * (w < 1024 ? .36 : .72)
       const aimX = lerp(x, shoulderX, .12 * v)
-      cameraX = (1-cameraScale) * (aimX-baseX) + (w*.54-aimX) * push * .32
-      cameraY = (1-cameraScale) * (y-baseY-offset) + (h*.40-y) * push * .32
-      if (push > 0) {
+      cameraX = (1-cameraScale) * (aimX-baseX) + (w*.54-aimX) * cameraPush * .32
+      cameraY = (1-cameraScale) * (y-baseY-offset) + (h*.40-y) * cameraPush * .32
+      if (cameraPush > 0) {
         scene.style.setProperty("--camera-depth", String(push))
         scene.style.transformOrigin = "0 0"
         scene.style.transform = `translate3d(${cameraX}px,${cameraY}px,0) scale(${cameraScale})`
