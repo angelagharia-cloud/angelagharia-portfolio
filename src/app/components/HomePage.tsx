@@ -13,7 +13,7 @@ import { ProjectCover } from "./covers"
 
 import { PortraitReveal } from "./PortraitReveal"
 import { SeasonalHeroAccents } from "./SeasonalHeroAccents"
-import { HeroSpool, ThreadProcess } from "./ThreadJourney"
+import { HeroSpool, ProjectThread, ThreadProcess } from "./ThreadJourney"
 
 const CREDENTIALS = [
   ["BSc Product Design", "Maynooth University"],
@@ -82,15 +82,16 @@ export function HomePage() {
         behavior: reduced ? "instant" : "smooth",
         block: "start",
       })
-    }, threadStarted || reduced ? 0 : 1130)
+    }, threadStarted || reduced ? 0 : 1480)
   }
 
   return (
     <>
+      <div className="thread-story"><ProjectThread active={threadStarted} />
       <Hero threadStarted={threadStarted} onFollowThread={followThread} />
       <ThreadProcess active={threadStarted} />
       <Highlights />
-      <SelectedWork />
+      <SelectedWork /></div>
       <About />
       <Toolkit />
     </>
@@ -130,10 +131,10 @@ function MaskLine({
 
 function Hero({ threadStarted, onFollowThread }: { threadStarted: boolean; onFollowThread: () => void }) {
   return (
-    <section className="relative isolate overflow-hidden pt-10 lg:pt-12">
+    <section className="relative isolate pt-10 lg:pt-12">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(56rem_36rem_at_12%_42%,rgba(59,130,246,0.06),transparent_62%),radial-gradient(46rem_34rem_at_88%_18%,rgba(168,85,247,0.06),transparent_60%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(56rem_36rem_at_12%_42%,rgba(59,130,246,0.06),transparent_62%),radial-gradient(46rem_34rem_at_88%_18%,rgba(214,196,164,0.14),transparent_60%)]"
       />
       <SeasonalHeroAccents />
       <div className="relative z-10 shell grid items-end gap-x-6 gap-y-7 pt-12 sm:pt-16 lg:min-h-[calc(100svh_-_4rem)] lg:grid-cols-12 lg:pt-12">
@@ -521,3 +522,4 @@ function Toolkit() {
     </section>
   )
 }
+

@@ -2,73 +2,89 @@ import { useEffect, useRef, useState } from "react"
 import { motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react"
 import "./thread-journey.css"
 
-/**
- * An original illustration, not a pre-rendered video: the spool and the string
- * move together in response to scrolling. Motion is progressive enhancement.
- */
-export function SpoolIllustration({ className = "" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 120 105" role="img" aria-label="A roll of natural cotton string">
-      <defs>
-        <linearGradient id="cottonBody" x1="0" y1="0" x2="1" y2="1">
-          <stop stopColor="#f7ead3" />
-          <stop offset=".32" stopColor="#d8c3a3" />
-          <stop offset=".68" stopColor="#c1a581" />
-          <stop offset="1" stopColor="#9d805f" />
-        </linearGradient>
-        <radialGradient id="cottonFace">
-          <stop stopColor="#f4e9d5" />
-          <stop offset=".72" stopColor="#d7bd9a" />
-          <stop offset="1" stopColor="#987858" />
-        </radialGradient>
-        <filter id="spoolShadow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="5" />
-        </filter>
-      </defs>
-      <ellipse cx="62" cy="93" rx="43" ry="7" fill="#67513d" opacity=".14" filter="url(#spoolShadow)" />
-      <g transform="rotate(-18 60 48)">
-        <path d="M28 25 Q58 15 95 27 L95 75 Q58 85 28 75 Z" fill="url(#cottonBody)" stroke="#ad9271" strokeWidth="1.4" />
-        {Array.from({ length: 18 }, (_, index) => {
-          const y = 26 + index * 2.75
-          return <path key={index} d={`M29 ${y} Q60 ${y - 9} 94 ${y}`} fill="none" stroke={index % 3 === 0 ? "#ad906e" : "#f7ecd9"} strokeWidth={index % 3 === 0 ? 1.2 : .85} opacity=".86" />
-        })}
-        <ellipse cx="28" cy="50" rx="14" ry="27" fill="#d1b794" stroke="#a88965" strokeWidth="1.5" />
-        <ellipse cx="95" cy="51" rx="15" ry="27" fill="url(#cottonFace)" stroke="#9d805e" strokeWidth="1.7" />
-        <ellipse cx="95" cy="51" rx="6" ry="12" fill="#756048" stroke="#d6bd9b" strokeWidth="2" />
-        <ellipse cx="96" cy="50" rx="2.4" ry="6" fill="#493b30" />
-        <path d="M22 29 Q16 50 22 70" fill="none" stroke="#f7ebda" strokeWidth="2" opacity=".6" />
-      </g>
-    </svg>
-  )
+import spoolRender from "../../assets/cotton-spool.webp"
+
+function SpoolIllustration() {
+  return <img src={spoolRender} alt="" draggable={false} className="cotton-render" />
 }
 
 export function HeroSpool({ active }: { active: boolean }) {
-  const reducedMotion = useReducedMotion()
-  return (
-    <div className="hero-spool" aria-hidden="true">
-      <svg className="hero-thread-tail" viewBox="0 0 210 270" preserveAspectRatio="none">
-        <motion.path
-          d="M27 4 C12 48 112 61 70 110 S18 162 83 180 S135 209 117 241"
-          fill="none" stroke="#a99072" strokeWidth="2" strokeLinecap="round"
-          initial={{ pathLength: 0 }}
-          animate={{ pathLength: active ? 1 : 0 }}
-          transition={{ duration: reducedMotion ? 0 : 1.1, ease: "easeInOut" }}
-        />
-      </svg>
-      <motion.div
-        className="hero-spool-object"
-        initial={false}
-        animate={active && !reducedMotion
-          ? { x: [0, 15, 56, 90], y: [0, 52, 118, 237], rotate: [0, 95, 270, 650], scale: [1, 1.05, .95, .9], opacity: [1, 1, 1, 0] }
-          : { x: 0, y: 0, rotate: 0, scale: 1, opacity: 1 }}
-        transition={{ duration: reducedMotion ? 0 : 1.15, times: [0, .28, .64, 1], ease: "easeInOut" }}
-      >
-        <SpoolIllustration />
-      </motion.div>
-    </div>
-  )
+  const anchor = useRef<HTMLSpanElement>(null)
+  const [route, setRoute] = useState("")
+  const reduced = useReducedMotion()
+  useEffect(() => {
+    const origin = anchor.current
+    const portrait = document.querySelector("#portrait-stage img")
+    const process = document.querySelector(".process-canvas")
+    if (!origin || !portrait || !process) return
+    function measure() {
+      const a = origin!.getBoundingClientRect()
+      const p = portrait!.getBoundingClientRect()
+      const end = process!.getBoundingClientRect()
+      const x = p.left + p.width * .29 - a.left
+      const y = p.top + p.height * .38 - a.top
+      const ex = end.left + end.width * 32 / 1200 - a.left
+      const ey = end.top + end.height * 195 / 380 - a.top
+      setRoute(`M 0 0 Q 18 -2 32 4 Q ${(32+x)/2} 7 ${x} ${y} Q ${x+22} ${y-54} ${x+38} ${y-17} C ${x+74} ${y+85} ${ex} ${ey-108} ${ex} ${ey}`)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(portrait)
+    observer.observe(process)
+    observer.observe(document.body)
+    return () => observer.disconnect()
+  }, [])
+  return <span ref={anchor} className="spool-origin" aria-hidden="true">
+    {route && active && <svg className="flight-thread"><motion.path d={route} fill="none" stroke="#ab9272" strokeWidth="1.5" initial={{pathLength: reduced ? 1 : 0}} animate={{pathLength:1}} transition={{duration:reduced ? 0 : 1.65, ease:"linear"}} /></svg>}
+    <motion.span className="flight-spool" style={{offsetPath: route ? `path("${route}")` : undefined, offsetRotate:"0deg"}} initial={false}
+      animate={{offsetDistance:active && !reduced ? "100%" : "0%", opacity:active ? [1,1,0] : 1}}
+      transition={{offsetDistance:{duration:1.65,ease:"linear"},opacity:{duration:reduced ? 0 : 1.65,times:[0,.98,1]}}}>
+      <motion.span className="spool-roll" animate={{rotate:active && !reduced ? 320 : 0}} transition={{duration:1.65,ease:"linear"}}><SpoolIllustration /></motion.span>
+    </motion.span>
+  </span>
 }
 
+export function ProjectThread({active}:{active:boolean}) {
+  const svg = useRef<SVGSVGElement>(null)
+  const [route,setRoute] = useState("")
+  const work = useRef<HTMLElement | null>(null)
+  const progress = useMotionValue(0)
+  const reduced = useReducedMotion()
+  useEffect(() => {
+    const layer = svg.current
+    const canvas = document.querySelector(".process-canvas")
+    work.current = document.getElementById("work")
+    const cards = work.current?.querySelectorAll("article")
+    if (!layer || !canvas || !cards?.length) return
+    function measure() {
+      const origin = layer!.getBoundingClientRect()
+      const start = canvas!.getBoundingClientRect()
+      const x = start.left-origin.left+start.width*.975
+      const y = start.top-origin.top+start.height*198/380
+      const rail = Math.min(origin.width-5,start.right-origin.left+12)
+      let d = `M${x} ${y} Q${rail} ${y} ${rail} ${y+35}`
+      for (const card of Array.from(cards!).slice(0,2)) {
+        const rect = card.getBoundingClientRect()
+        const edge = rect.right-origin.left
+        const top = rect.top-origin.top+42
+        d += ` V${top-12} Q${rail} ${top} ${edge} ${top} Q${rail} ${top} ${rail} ${top+12}`
+      }
+      setRoute(d)
+      update()
+    }
+    function update() {
+      const a=canvas!.getBoundingClientRect().bottom
+      const b=cards![1].getBoundingClientRect().top+54
+      progress.set(reduced ? 1 : Math.max(0,Math.min(1,(innerHeight*.8-a)/Math.max(1,b-a))))
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(document.body)
+    window.addEventListener("scroll",update,{passive:true})
+    return () => { observer.disconnect(); window.removeEventListener("scroll",update) }
+  },[progress,reduced])
+  return <svg ref={svg} aria-hidden="true" className="project-thread">{active && <motion.path d={route} fill="none" stroke="#766955" strokeWidth="1.5" style={{pathLength:progress}}/>}</svg>
+}
 const processPath = "M32 195 C42 105 98 245 60 235 S16 85 96 96 S32 300 142 276 S115 105 195 118 S129 291 238 234 S221 123 284 175 S286 253 338 204 S348 158 389 192 S415 217 447 199 S466 175 496 196 C540 204 566 202 595 200 S675 194 745 198 S838 200 918 198 S1045 198 1170 198"
 const words = [
   { title: "Noise & uncertainty", sub: "Start with questions", x: "1.5%" },
@@ -130,3 +146,4 @@ export function ThreadProcess({ active }: { active: boolean }) {
     </section>
   )
 }
+
