@@ -163,33 +163,31 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
       `${name}: cotton must wind back to its original process line: ${JSON.stringify(reversed)}`)
     await page.locator("#work").scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
-    // Verify this is the same *physical* strand: the Selected Work
-    // continuation must begin at the responsive end of Clarity & focus,
-    // including the track's final sticky-release offset.
+    // At the cards, the visible strand must still START at the original
+    // fixed Clarity spool, not at a hidden, newly generated card lead.
     await page.waitForFunction(() => Boolean(
-      document.querySelector('#catch-line-creative-key path[d]')
+      document.querySelector('#single-cotton-reveal path[d]')
     ), undefined, { timeout: 6000 });
     const seam = await page.evaluate(() => {
       const svg = document.querySelector('.project-thread');
-      const exit = document.querySelector('.process-exit');
-      const canvas = document.querySelector('.process-canvas');
-      const track = document.querySelector('.process-track');
-      const first = document.querySelector('#catch-line-creative-key path[d]');
-      const start = first.getAttribute('d').trim().match(/^M\s*([-\d.]+)\s+([-\d.]+)/);
-      const output = svg.getBoundingClientRect();
-      const mark = exit.getBoundingClientRect();
-      const box = canvas.getBoundingClientRect();
-      const trackBox = track.getBoundingClientRect();
+      const shape = document.querySelector('#single-cotton-reveal path[d]');
+      const original = document.querySelector('#process-cotton path');
+      const text = shape.getAttribute('d');
+      const match = text.trim().match(/^M\s*([-\d.]+)\s+([-\d.]+)/);
+      const spool = original.getPointAtLength(original.getTotalLength());
+      const screen = new DOMPoint(spool.x, spool.y).matrixTransform(original.getScreenCTM());
+      const overlay = svg.getBoundingClientRect();
       return {
-        startX: Number(start?.[1]),
-        startY: Number(start?.[2]),
-        exitX: mark.left - output.left,
-        exitY: mark.top + trackBox.bottom - box.bottom - output.top,
+        startX: Number(match?.[1]), startY: Number(match?.[2]),
+        spoolX: screen.x - overlay.left, spoolY: screen.y - overlay.top,
+        pathCount: (text.match(/\bM\b/g)||[]).length,
+        falling: Number(svg.dataset.gravityProgress),
       };
     });
-    assert(Math.abs(seam.startX - seam.exitX) < 1.25 &&
-      Math.abs(seam.startY - seam.exitY) < 1.25,
-      `${name}: new work thread does not join process exit: ${JSON.stringify(seam)}`);
+    assert(Math.abs(seam.startX - seam.spoolX) < 2 &&
+      Math.abs(seam.startY - seam.spoolY) < 2 &&
+      seam.pathCount === 1 && seam.falling > .95,
+      "original cotton must remain attached to Clarity: " + JSON.stringify(seam));
     await page.screenshot({ path: `${output}/${name}-projects.png`, fullPage: true });
     await page.screenshot({ path: `${output}/${name}-projects-viewport.png` });
   }
