@@ -409,6 +409,10 @@
 .hero-actions .work-shortcut:hover { background:#2046b6; }
 .hero-actions .work-shortcut:focus-visible { outline:3px solid #193b9f; outline-offset:4px; }
 .hero-actions .work-shortcut:active { background:#183994; }
+@media(max-width:359px) {
+  .hero-actions .work-shortcut { padding-inline:.7rem; font-size:.86rem; }
+  .hero-actions .work-shortcut svg { display:none; }
+}
 .process-spool .settled-tail { inset:0; width:100%; height:100%; transform:none; pointer-events:none; }
 @media (max-width:640px) {
   .process-track { --stage-height:clamp(225px,31svh,270px); }

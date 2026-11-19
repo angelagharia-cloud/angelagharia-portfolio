@@ -56,6 +56,9 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
     const jacket = document.querySelector<HTMLElement>("#portrait-stage img")!
     const entry = document.querySelector<HTMLElement>(".landing-entry")!
     const receiver = document.querySelector<HTMLElement>(".process-spool")!
+    const spindle = anchor.querySelector<HTMLElement>(".flight-spool")!
+    const introduction = scene.querySelector<HTMLElement>(".hero-copy > .t-lead")!
+    let dirty: { x:number; y:number; width:number; height:number } | undefined
     const atlas = new Image(), grain = new Image()
     atlas.src = innerWidth <= 640 ? smallSpin : spin
     grain.src = fibre
@@ -80,7 +83,7 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
         canvas.height = Math.round(h * dpr)
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-      ctx.clearRect(0, 0, w, h)
+      if (dirty) ctx.clearRect(dirty.x, dirty.y, dirty.width, dirty.height)
       const sceneBox = scene.getBoundingClientRect()
       const baseX = sceneBox.left - cameraX, baseY = sceneBox.top - cameraY
       if (!shortcutOrigin) {
@@ -100,7 +103,7 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
       }
       const scrollBefore = scrollY
       const o = worldBox(anchor), p = worldBox(jacket), e = entry.getBoundingClientRect()
-      const width = anchor.querySelector<HTMLElement>(".flight-spool")!.offsetWidth
+      const width = spindle.offsetWidth
       const size = width * .84
       const railShape = railRef.current
       const run = railShape?.distance ?? worldBox(word).right - o.left
@@ -132,9 +135,7 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
       const time = Math.min(finish, elapsed)
       const u = clamp(time / rollEnd), v = clamp((time - rollEnd) / (hit - rollEnd)), t = clamp((time - hit) / (ground - hit))
       const tilt = smooth(u / .82) * (1 - smooth((time - rollEnd) / .54))
-      word.style.setProperty("--surname-tilt", String(4 * tilt) + "deg")
       const pressure = Math.sin(Math.PI * smooth(clamp((u - .45) / .55)))
-      word.style.setProperty("--letter-load", String(pressure * Math.min(2.8, size * .033)) + "px")
       const afterImpact = Math.max(0, time - ground)
       const landingWidth = parseFloat(getComputedStyle(receiver).width)
       const diameter = lerp(size, landingWidth, smooth(t))
@@ -155,7 +156,9 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
       }
       // On narrow screens, let the bobbin clear the controls before it
       // reaches the margin alongside the biography and process introduction.
-      const copyTop = w < 1024 ? worldBox(document.querySelector<HTMLElement>(".hero-copy > .t-lead")!).top : 0
+      const copyTop = w < 1024 ? worldBox(introduction).top : 0
+      word.style.setProperty("--surname-tilt", String(4 * tilt) + "deg")
+      word.style.setProperty("--letter-load", String(pressure * Math.min(2.8, size * .033)) + "px")
       const rail = Math.max(diameter * .53 + 2, 15)
       function lane(atY: number) {
         const clear = smooth((atY - shoulderY - 38) / Math.max(90, copyTop - shoulderY - 65))
@@ -313,6 +316,17 @@ export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObj
         })
         strand(ctx, cotton, tail, lerp(w < 640 ? 3.1 : 4, landingWidth * .042, smooth(t)))
       }
+      // Only the spindle, contact shadow and thread change. Clearing the
+      // full 4K viewport makes the compositor repaint empty porcelain.
+      const radius = diameter * .75
+      let left = x-radius, right = x+radius, top = y-radius, bottom = y+radius
+      for (const point of tail) {
+        left = Math.min(left,point.x-5); right = Math.max(right,point.x+5)
+        top = Math.min(top,point.y-5); bottom = Math.max(bottom,point.y+5)
+      }
+      const projection = ctx.getTransform()
+      dirty = { x:(projection.a*left+projection.e)/dpr-2, y:(projection.d*top+projection.f)/dpr-2,
+        width:(right-left)*cameraScale+4, height:(bottom-top)*cameraScale+4 }
       {
         const phase = 47 * clamp(u * u * .48 + v * .22 + t * .30)
         const frame = Math.floor(phase)
