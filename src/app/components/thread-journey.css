@@ -463,5 +463,7 @@
 .thread-story:has(.project-thread[data-handoff="true"]) .process-path > g {
   visibility: hidden;
 }
-.project-thread[data-handoff="true"] .catch-leading-fibre { visibility: hidden; }
+/* Legacy per-card lead is always suppressed. Only the joined fibre is drawn;
+   the existing card stitches remain as local material details. */
+.project-thread .catch-leading-fibre { visibility: hidden; }
 /* Holes and stitch-over-card detail still sit above the shared cotton. */
