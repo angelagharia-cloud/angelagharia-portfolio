@@ -396,11 +396,15 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
       const phase = active ? (reduced ? 4 : Math.max(0, Math.min(4, travel * 4))) : 0
       const chapterIndex = Math.min(3, Math.floor(phase))
       // Expose the real morph state for automated browser verification.
-      node.dataset.untangleProgress = Math.min(1, phase).toFixed(3)
+      // First lay out the complete physical knot; only then pull the
+      // standing coils taut. This gives the viewer time to SEE the tangle
+      // before its loops open and straighten, like untying real cotton.
+      const revealEnd = .42
+      const release = settle((phase - revealEnd) / (1 - revealEnd))
+      node.dataset.untangleProgress = release.toFixed(3)
 
-      // Material geometry changes as the scroll moves: real coils contract,
-      // thread segments un-cross, and the laid strand becomes quieter.
-      const noise = unwindingNoise(Math.min(1, phase))
+      // A single physical strand changes material shape, not just mask opacity.
+      const noise = unwindingNoise(release)
       const nextCurve = entryCurve + " " + noise + " " + chapters.slice(1).join(" ")
       if (nextCurve !== liveCurve.get()) {
         node.setAttribute("d", nextCurve)
@@ -410,7 +414,10 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
       let distance: number
       if (phase < 1) {
         firstMeasure.setAttribute("d", entryCurve + " " + noise)
-        distance = firstMeasure.getTotalLength() * phase
+        // Spool lays the full tangled yarn by 42% of chapter one, then
+        // pauses at its exit while the attached knot itself comes undone.
+        distance = firstMeasure.getTotalLength() *
+          Math.min(1, phase / revealEnd)
       } else {
         distance = stops[chapterIndex] + (phase - chapterIndex) *
           (stops[chapterIndex + 1] - stops[chapterIndex])
