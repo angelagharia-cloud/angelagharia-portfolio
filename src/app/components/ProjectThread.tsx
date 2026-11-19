@@ -8,18 +8,15 @@ import {
   type MotionValue,
 } from "motion/react"
 import { CottonStrip } from "./CottonStrip"
-import tieAtlas from "../../imports/opt/card-tie.webp"
 
 const projects = ["creative-key", "gravitad", "stammer-halo"]
 type Catch = {
   id: string
   x: number
   y: number
-  width: number
   inletX: number
   inletY: number
   card: HTMLElement
-  angle: number
   path: string
   start: number
   anchorX: number
@@ -37,7 +34,7 @@ function CornerCatch({
   release: MotionValue<number>
   cursor: MotionValue<number>
 }) {
-  const { id, x, y, width, path, start, arrival } = shot
+  const { id, x, y, path, start, arrival } = shot
   const line = useTransform(cursor, [start, arrival], [0, 1])
   const swing = useTransform(() => {
     if (id !== projects[0]) return ""
@@ -49,25 +46,13 @@ function CornerCatch({
     return `translate(${shot.anchorX} ${start}) matrix(1 0 ${angle} ${drop} 0 0) translate(${-shot.anchorX} ${-start})`
   })
   const frame = useTransform(cursor, [arrival, shot.finish], [0, 47])
-  const position = useTransform(frame, (n) => {
-    const i = Math.round(n)
-    return `${((i % 8) * 100) / 7}% ${Math.floor(i / 8) * 20}%`
-  })
-  const wrap = useTransform(frame, [22, 44], [0, 1])
-  const opacity = useTransform(frame, (n) => Math.min(1, n))
-  const tension = useTransform(frame, [0, 12, 33, 42, 47], [0, 0, .76, 1, .87])
-  const pullX = useTransform(tension, n => -6 * n)
-  const pullY = useTransform(tension, n => 5 * n)
-  const radians = shot.angle * Math.PI / 180
-  const wrapPath = useTransform(tension, load => {
-    // The filmed loop returns to pixel (198,86) of its 384 × 288 cell.
-    // Lead the same fibre around the fold and out along the right edge.
-    const knotX = x + width * (-.004 * Math.cos(radians) + .076 * Math.sin(radians)) - 6 * load
-    const knotY = y + width * (-.004 * Math.sin(radians) - .076 * Math.cos(radians)) + 5 * load
-    return `M ${knotX} ${knotY} C ${knotX-2} ${knotY+8}, ${x+1-8*load} ${y+14}, ${x+4} ${y+35}`
-  })
-  const tipX = useTransform(pullX, dx => shot.inletX + dx)
-  const tipY = useTransform(pullY, dy => shot.inletY + dy)
+  const wrap = useTransform(frame, [4, 43], [0, 1])
+  const opacity = useTransform(frame, [0, 4], [0, 1])
+  const tension = useTransform(frame, [0, 20, 43, 47], [0, .08, 1, .92])
+  // Cotton enters the face, passes behind it, then comes back through a second hole.
+  const stitch = useTransform(tension, t =>
+    `M ${x-19} ${y+19} Q ${x+16-18*t} ${y+10+10*t} ${x+3-10*t} ${y+21}
+     Q ${x-6} ${y+28} ${x-13} ${y+28} M ${x-11} ${y+33} Q ${x-4} ${y+34} ${x+4} ${y+35}`)
   useEffect(() => {
     const card = shot.card
     const w = card.offsetWidth, h = card.offsetHeight
@@ -112,50 +97,14 @@ function CornerCatch({
       <motion.g transform={swing}><g mask={`url(#catch-line-${id})`}>
         <CottonStrip curve={path} width={3.2} step={12} />
       </g></motion.g>
-      <mask
-        id={`behind-edge-${id}`}
-        maskUnits="userSpaceOnUse"
-        x={x - width}
-        y={y - width}
-        width={width * 2}
-        height={width * 2}
-      >
-        <rect
-          x={x - width}
-          y={y - width}
-          width={width * 2}
-          height={width * 2}
-          fill="white"
-        />
-        <ellipse cx={x - 2} cy={y + 2} rx="3" ry="1.75" fill="black" />
-      </mask>
-      <mask id={`corner-wrap-${id}`} maskUnits="userSpaceOnUse" x={x-50} y={y-50} width="110" height="110">
-        <motion.path d={wrapPath} fill="none" stroke="white" strokeWidth="8" strokeLinecap="round" style={{ pathLength: wrap }} />
-      </mask>
-      <motion.g mask={`url(#corner-wrap-${id})`} style={{ opacity:wrap }}>
-        <CottonStrip curve={wrapPath} width={3.2} step={3} />
+      <motion.g style={{opacity}}>
+        {[[shot.inletX, shot.inletY], [x-19,y+19], [x-13,y+28], [x-11,y+33]].map(([cx,cy]) =>
+          <ellipse key={cy} cx={cx} cy={cy} rx="2.7" ry="1.7" fill="#574638" stroke="#d5c5ad" strokeWidth=".8" />)}
       </motion.g>
-      <motion.line x1={shot.inletX} y1={shot.inletY} x2={tipX} y2={tipY} stroke="#ac987c" strokeWidth="1.5" strokeLinecap="round" style={{ opacity }} />
-      <motion.g style={{ x: pullX, y: pullY }} mask={`url(#behind-edge-${id})`}>
-        <g transform={`translate(${x} ${y}) rotate(${shot.angle})`}>
-          <foreignObject
-            x={-width * 0.52}
-            y={-width * 0.75 * 0.4}
-            width={width}
-            height={width * 0.75}
-          >
-            <motion.div
-              className="corner-take"
-              data-project={id}
-              style={{
-                opacity,
-                backgroundImage: `url(${tieAtlas})`,
-                backgroundPosition: position,
-              }}
-            />
-          </foreignObject>
-        </g>
-      </motion.g>
+      <mask id={`stitch-${id}`} maskUnits="userSpaceOnUse" x={x-32} y={y} width="56" height="50">
+        <motion.path d={stitch} fill="none" stroke="white" strokeWidth="8" style={{pathLength:wrap}} />
+      </mask>
+      <g mask={`url(#stitch-${id})`}><CottonStrip curve={stitch} width={3.4} step={2} /></g>
     </>
   )
 }
@@ -234,20 +183,14 @@ export function ProjectThread({ active }: { active: boolean }) {
       const result: Catch[] = []
       cards.forEach((card, i) => {
         if (!card) return
-        const r = card.getBoundingClientRect(),
-          width = Math.min(170, origin.width * 0.3)
+        const r = card.getBoundingClientRect()
         const x = r.right - origin.left - 5,
           y = r.top - origin.top + 6
-        const angle = i === 2 && r.width < box.width * 0.75 ? 30 : -90
-        const radians = (angle * Math.PI) / 180
-        const inletX =
-            x + width * (0.38 * Math.cos(radians) + 0.3 * Math.sin(radians)),
-          inletY =
-            y + width * (0.38 * Math.sin(radians) - 0.3 * Math.cos(radians))
+        const inletX = x - 22, inletY = y + 13
         // Let the long free span hang under tension and approach each loop
         // with a tangent. The outer margin keeps it clear of case-study copy.
         const reach = inletY - py
-        const sharedRow = angle === 30
+        const sharedRow = i === 2 && r.width < box.width * .75
         const gutterY = y - 22
         const path = i === 0
           // One continuous falling strand, beginning exactly where Clarity
@@ -276,8 +219,6 @@ export function ProjectThread({ active }: { active: boolean }) {
           id: projects[i],
           x,
           y,
-          width,
-          angle,
           path,
           anchorX: px, swingRoom: Math.min(32, Math.max(0, origin.width - rail - 3)),
           start, arrival, finish: arrival + 48,

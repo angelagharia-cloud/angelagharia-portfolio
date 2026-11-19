@@ -317,6 +317,18 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
   const startX = 120 // 10% of the 1200-unit process canvas; safely in step 1
   const entryCurve = `M${startX} 195`
   const curve = entryCurve + " " + chapters.join(" ")
+  const slack = useMotionValue(0)
+  const hangingCurve = useTransform(slack, t => {
+    if (!t) return curve
+    // Both endpoints stay pinned as slack travels through the original loops.
+    return curve.replace(/(-?\d+) (-?\d+)/g, (_, sx, sy) => {
+      const x = Number(sx), y = Number(sy)
+      const along = Math.max(0, Math.min(1, (x - 120) / 1050))
+      const sag = Math.sin(Math.PI * along)
+      const wave = Math.sin(2 * Math.PI * (along - t))
+      return (x + t * sag * 64) + " " + (y + t * sag * (92 + 26 * wave))
+    })
+  })
   const positionX = useMotionValue(`${startX / 12}%`)
   const positionY = useMotionValue("51.316%")
   const progress = useMotionValue(0)
@@ -349,7 +361,7 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
       const phase = active ? (reduced ? 4 : Math.max(0, Math.min(4, travel * 4))) : 0
       const chapter = Math.min(3, Math.floor(phase))
       const distance = stops[chapter] + (phase - chapter) * (stops[chapter + 1] - stops[chapter])
-      const pos = node.getPointAtLength(distance)
+      const pos = measure.getPointAtLength(distance)
       setStage(chapter)
       positionX.set(String(pos.x / 12) + "%")
       // Match the visual SVG squash on narrow screens in JS rather than
@@ -363,7 +375,15 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
       const frame = Math.round(47 * (.5 + .5 * Math.cos(Math.PI * cycle)))
       rollFrame.set(String((frame % 8) * 100 / 7) + "% " + String(Math.floor(frame / 8) * 20) + "%")
     }
-    const update = () => draw(travelAtScroll())
+    let released = false
+    const update = () => {
+      draw(travelAtScroll())
+      const loose = active && !reduced && track.current!.getBoundingClientRect().bottom < innerHeight * .72
+      if (released !== loose) {
+        released = loose
+        animate(slack, loose ? 1 : 0, {duration: loose ? 1.15 : .36, ease:"easeInOut"})
+      }
+    }
     update()
     window.addEventListener("scroll", update, { passive:true })
     window.addEventListener("resize", update)
@@ -387,9 +407,9 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
           </div>
           <svg viewBox="0 0 1200 380" preserveAspectRatio="none" className="process-path">
             <mask id="process-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="380">
-              <motion.path ref={path} d={curve} fill="none" stroke="white" strokeWidth="18" style={{ pathLength: progress }} />
+              <motion.path ref={path} d={hangingCurve} fill="none" stroke="white" strokeWidth="18" style={{ pathLength: progress }} />
             </mask>
-            <g mask="url(#process-cotton)"><CottonStrip curve={curve} width={3.45} step={8} screenWidth /></g></svg>
+            <g mask="url(#process-cotton)"><CottonStrip curve={hangingCurve} width={3.45} step={8} screenWidth /></g></svg>
           {/* Exact end of Clarity & focus. The falling portfolio cotton begins at this same physical point. */}
           <span className="process-exit" aria-hidden="true" />
           <div aria-hidden="true" className="landing-entry" data-settled={active} style={{ left: String(startX / 12) + "%" }}>
