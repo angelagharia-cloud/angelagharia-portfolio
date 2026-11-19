@@ -263,7 +263,7 @@ export function ProjectThread({ active }: { active: boolean }) {
         <mask id="project-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="20000">
           <motion.path d={route} fill="none" stroke="white" strokeWidth="9" style={{ pathLength: progress }} />
         </mask>
-        <g mask="url(#project-cotton)"><CottonStrip curve={route} /></g>
+        <g mask="url(#project-cotton)"><CottonStrip curve={route} step={32} /></g>
       </>}
     </svg>
   )
@@ -323,7 +323,7 @@ export function ThreadProcess({ active }: { active: boolean }) {
             <mask id="process-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="380">
               <motion.path ref={path} d={processPath} fill="none" stroke="white" strokeWidth="12" style={{ pathLength: progress }} />
             </mask>
-            <g mask="url(#process-cotton)"><CottonStrip curve={processPath} width={6} /></g></svg>
+            <g mask="url(#process-cotton)"><CottonStrip curve={processPath} width={6} step={10} /></g></svg>
           <motion.div className="process-spool" aria-hidden="true"
             style={{ left: positionX, top: positionY, transform: "translate(-50%, -50%)" }}>
             <SpoolIllustration process turns={progress} active={active && !reduced} />

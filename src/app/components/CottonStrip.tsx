@@ -5,7 +5,7 @@ import cotton from "../../imports/opt/cotton-fibre.webp"
 const ns = "http://www.w3.org/2000/svg"
 
 // Turn the photographed material with the local tangent of the cotton.
-export function CottonStrip({ curve, width = 4 }: { curve: string | MotionValue<string>; width?: number }) {
+export function CottonStrip({ curve, width = 4, step = 6 }: { curve: string | MotionValue<string>; width?: number; step?: number }) {
   const group = useRef<SVGGElement>(null)
   useLayoutEffect(() => {
     const layer = group.current!
@@ -13,10 +13,10 @@ export function CottonStrip({ curve, width = 4 }: { curve: string | MotionValue<
     function paint(d: string) {
       path.setAttribute("d", d || "M0 0")
       const length = path.getTotalLength()
-      const count = Math.ceil(length / 6)
+      const count = Math.ceil(length / step)
       let a = path.getPointAtLength(0)
       for (let i = 0; i < count; i++) {
-        const b = path.getPointAtLength(Math.min(length, (i + 1) * 6))
+        const b = path.getPointAtLength(Math.min(length, (i + 1) * step))
         let tile = layer.children[i] as SVGSVGElement | undefined
         if (!tile) {
           tile = document.createElementNS(ns, "svg")
@@ -40,6 +40,6 @@ export function CottonStrip({ curve, width = 4 }: { curve: string | MotionValue<
     }
     paint(typeof curve === "string" ? curve : curve.get())
     if (typeof curve !== "string") return curve.on("change", paint)
-  }, [curve, width])
+  }, [curve, width, step])
   return <g ref={group} aria-hidden="true" />
 }
