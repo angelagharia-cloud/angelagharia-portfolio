@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { motion } from "motion/react"
 import { playSway } from "../lib/portraitSound"
 import { ArrowRight, Volume2, VolumeX } from "lucide-react"
 import { media } from "../lib/media"
@@ -16,7 +17,7 @@ const facts = [
 const portrait = media("portrait")
 const control = "inline-flex min-h-11 items-center gap-2 rounded-full px-3 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 hover:bg-neutral-100"
 
-export function PortraitReveal() {
+export function PortraitReveal({ threadImpact = false }: { threadImpact?: boolean }) {
   const [index, setIndex] = useState(-1)
   const [previous, setPrevious] = useState(-1)
   const [side, setSide] = useState(0)
@@ -71,6 +72,13 @@ export function PortraitReveal() {
       <div ref={stage} id="portrait-stage" className="portrait-stage relative aspect-[5/6] sm:aspect-[4/5] lg:aspect-auto lg:h-[clamp(36rem,calc(100svh_-_7rem),48rem)]" data-side={side}>
         {note(previous, -side, true)}
         {note(index, side)}
+        {threadImpact && <motion.span
+          aria-hidden="true"
+          className="portrait-thread-contact"
+          initial={{ opacity: 0, scale: .5 }}
+          animate={{ opacity: [0, .32, 0], scale: [.5, 1, 1.8] }}
+          transition={{ duration: .6, delay: .93, times: [0, .3, 1] }}
+        />}
         <div className="portrait-figure">
           <Img media={portrait} priority alt="Angel Agharia" sizes="(min-width: 1024px) 32rem, (min-width: 640px) 25rem, 88vw" className="h-full w-auto max-w-none drop-shadow-[0_24px_30px_rgba(15,23,42,0.18)]" />
         </div>
