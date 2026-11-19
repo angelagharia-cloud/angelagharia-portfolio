@@ -303,17 +303,14 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
   const path = useRef<SVGPathElement>(null)
   const reduced = useReducedMotion()
   const [stage, setStage] = useState(0)
-  const [wide, setWide] = useState(() => innerWidth >= 1024)
-  useEffect(() => {
-    const query = matchMedia("(min-width: 1024px)")
-    const update = () => setWide(query.matches)
-    query.addEventListener("change", update)
-    return () => query.removeEventListener("change", update)
-  }, [])
-  const startX = wide ? 672 : 260
-  const entryCurve = wide ? "M672 195 C574 161 391 148 260 212" : "M260 195"
+  // The arriving reel must land at chapter ONE, where the tangled thread
+  // starts, rather than halfway across the story near chapter three.
+  // Keep the landing marker and the physical cotton path on the same point
+  // at all breakpoints; the hero flight reads .landing-entry directly.
+  const startX = 32
+  const entryCurve = "M32 195"
   const curve = entryCurve + " " + chapters.join(" ")
-  const positionX = useMotionValue("21.667%")
+  const positionX = useMotionValue("2.667%")
   const positionY = useMotionValue("51.316%")
   const progress = useMotionValue(0)
   const groundShadow = useTransform(progress, [0, .026], [1, 0])
