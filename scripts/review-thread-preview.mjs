@@ -104,7 +104,9 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
       const source = document.querySelector(".process-path > g")
       const screen = document.querySelector(".project-thread").getBoundingClientRect()
       const sourcePath = document.querySelector("#process-cotton path")
-      const p = sourcePath.getPointAtLength(0)
+      // Continuous yarn is reversed: it starts at the fixed Clarity spool
+      // and the original Noise-end is the part gravity pulls into Work.
+      const p = sourcePath.getPointAtLength(sourcePath.getTotalLength())
       const origin = new DOMPoint(p.x, p.y).matrixTransform(sourcePath.getScreenCTM())
       const start = d.match(/^M\s*([-\d.]+)\s+([-\d.]+)/)
       return {
@@ -121,7 +123,17 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
       continuity.distance < 1.5 && continuity.unifiedVisible &&
       continuity.originalHidden && continuity.duplicateHidden,
       `${name}: cotton must be one uninterrupted fibre: ${JSON.stringify(continuity)}`)
-    await page.waitForTimeout(1000)
+    await page.waitForTimeout(1200)
+    const drop = await page.locator(".project-thread").evaluate(svg => ({
+      progress: Number(svg.dataset.gravityProgress),
+      pixels: Number(svg.dataset.gravityDrop),
+      originalVisible: getComputedStyle(document.querySelector(".process-path > g")).visibility,
+      existingFibreVisible: getComputedStyle(document.querySelector(".continuous-cotton-fibre")).visibility,
+    }))
+    assert(drop.progress > .95 && drop.pixels > 120 &&
+      drop.originalVisible === "hidden" && drop.existingFibreVisible === "visible",
+      `${name}: existing tangled cotton must FALL visibly, not grow a fresh lead: ${JSON.stringify(drop)}`)
+    await page.screenshot({ path: `${output}/${name}-actual-tangle-falling.png` })
     const settled = await pose("settled")
     const sag = await page.locator(".process-path > g").evaluate(g => g.getCTM().b)
     assert(sag < -.01, "Rendered squiggle must sag after release")
