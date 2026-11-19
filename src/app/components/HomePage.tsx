@@ -82,7 +82,7 @@ export function HomePage() {
         behavior: reduced ? "instant" : "smooth",
         block: "start",
       })
-    }, threadStarted || reduced ? 0 : 1480)
+    }, threadStarted || reduced ? 0 : 1920)
   }
 
   return (
@@ -134,7 +134,7 @@ function Hero({ threadStarted, onFollowThread }: { threadStarted: boolean; onFol
     <section className="relative isolate pt-10 lg:pt-12">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(56rem_36rem_at_12%_42%,rgba(59,130,246,0.06),transparent_62%),radial-gradient(46rem_34rem_at_88%_18%,rgba(214,196,164,0.14),transparent_60%)]"
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(56rem_36rem_at_12%_42%,rgba(40,85,216,0.045),transparent_62%),radial-gradient(46rem_34rem_at_88%_18%,rgba(165,139,108,0.11),transparent_60%)]"
       />
       <SeasonalHeroAccents />
       <div className="relative z-10 shell grid items-end gap-x-6 gap-y-7 pt-12 sm:pt-16 lg:min-h-[calc(100svh_-_4rem)] lg:grid-cols-12 lg:pt-12">
@@ -146,7 +146,7 @@ function Hero({ threadStarted, onFollowThread }: { threadStarted: boolean; onFol
           <h1 className="t-display mt-6 text-neutral-950">
             <MaskLine delay={0.08}>Angel</MaskLine>
             <span className="hero-name-with-thread">
-              <MaskLine delay={0.18} className="italic text-[#85858d]">
+              <MaskLine delay={0.18} className="italic text-[#2855D8]">
                 Agharia
               </MaskLine>
               <HeroSpool active={threadStarted} />
@@ -184,14 +184,14 @@ function Hero({ threadStarted, onFollowThread }: { threadStarted: boolean; onFol
             {...intro(0.58)}
             className="mt-9 flex flex-wrap items-center gap-3"
           >
-            <Link to="home" section="work" className={btn.primary}>
+            <Link to="home" section="work" className={`${btn.primary} thread-primary-cta`}>
               View selected work
               <ArrowDown
                 className="h-4 w-4 transition-transform duration-300 ease-out-quint group-hover:translate-y-0.5"
                 strokeWidth={1.75}
               />
             </Link>
-            <button type="button" onClick={onFollowThread} className={btn.secondary}>
+            <button type="button" onClick={onFollowThread} className={`${btn.secondary} thread-secondary-cta`}>
               Follow the thread
               <ArrowDown className="h-4 w-4" aria-hidden="true" strokeWidth={1.75} />
             </button>
@@ -204,7 +204,7 @@ function Hero({ threadStarted, onFollowThread }: { threadStarted: boolean; onFol
           transition={{ duration: 1.1, ease: EASE_OUT, delay: 0.12 }}
           className="relative mx-auto w-full max-w-[22rem] sm:max-w-[27rem] lg:col-span-6 lg:max-w-none"
         >
-          <PortraitReveal />
+          <PortraitReveal threadImpact={threadStarted} />
         </motion.div>
       </div>
     </section>
