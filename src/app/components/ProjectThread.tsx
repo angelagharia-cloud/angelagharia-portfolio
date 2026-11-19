@@ -139,6 +139,7 @@ export function ProjectThread({ active }: { active: boolean }) {
   const [shots, setShots] = useState<Catch[]>([])
   const [handoff, setHandoff] = useState(false)
   const [ready, setReady] = useState(false)
+  const [textured, setTextured] = useState(false)
   const cursor = useMotionValue(0)
   const release = useMotionValue(0)
   const fibre = useMotionValue("M 0 0")
@@ -209,6 +210,10 @@ export function ProjectThread({ active }: { active: boolean }) {
       reveal.set(clamp01(paid / total))
       layer.dataset.gravityProgress = t.toFixed(3)
       layer.dataset.gravityDrop = (moving[moving.length - 1].y - oldTip.y).toFixed(1)
+      // While the fibre is physically moving, paint its uninterrupted core
+      // as one SVG stroke. Thousands of patterned rectangles can briefly
+      // detach from an animated mask; mount that texture ONLY once settled.
+      setTextured(t >= .985)
     }
 
     function update() {
@@ -363,8 +368,21 @@ export function ProjectThread({ active }: { active: boolean }) {
             <motion.path d={fibre} fill="none" stroke="#fff" strokeWidth="12"
               style={{ pathLength: reveal }} />
           </mask>
-          <g className="continuous-cotton-fibre" mask="url(#single-cotton-reveal)">
-            <CottonStrip curve={fibre} width={3.45} step={12} />
+          <g className="continuous-cotton-fibre" fill="none"
+            strokeLinecap="round" strokeLinejoin="round">
+            <motion.path d={fibre} stroke="#65543f" strokeWidth="4.6"
+              strokeOpacity=".27" style={{ pathLength: reveal }} />
+            <motion.path d={fibre} stroke="#bcae9b" strokeWidth="3.25"
+              style={{ pathLength: reveal }} />
+            <motion.path d={fibre} stroke="#e3d7c6" strokeWidth=".72"
+              strokeOpacity=".8" style={{ pathLength: reveal }} />
+            {textured && (
+              <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                transition={{ duration: .38, ease: "easeOut" }}
+                mask="url(#single-cotton-reveal)">
+                <CottonStrip curve={fibre} width={3.45} step={12} />
+              </motion.g>
+            )}
           </g>
         </>
       )}
