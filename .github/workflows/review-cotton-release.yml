@@ -1,0 +1,59 @@
+name: Verify cotton fall into Selected Work
+on:
+  push:
+    branches:
+      - preview/thread-of-reason-final-review
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cotton-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.3
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify assets
+        run: |
+          git lfs pull
+          node scripts/check-portfolio-assets.mjs
+      - run: pnpm run build
+      - name: Install Chromium
+        run: |
+          pnpm add -D --lockfile=false playwright@1.65.1
+          pnpm exec playwright install --with-deps chromium
+      - name: Launch preview
+        run: |
+          nohup pnpm exec vite preview --config vite.figma.config.ts --host 127.0.0.1 --port 4173 >/tmp/thread-preview.log 2>&1 &
+          for i in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/thread-preview.log
+          exit 1
+      - name: Verify natural gravity release
+        run: node scripts/review-cotton-release.mjs
+      - name: Retain visual proof
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: clarity-thread-gravity-review
+          path: release-review/
+          if-no-files-found: warn
+          retention-days: 7
