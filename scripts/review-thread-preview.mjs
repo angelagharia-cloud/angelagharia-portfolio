@@ -80,14 +80,14 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
     // including the track's final sticky-release offset.
     await page.waitForFunction(() => Boolean(
       document.querySelector('#catch-line-creative-key path[d]')
-    ), { timeout: 6000 });
+    ), undefined, { timeout: 6000 });
     const seam = await page.evaluate(() => {
       const svg = document.querySelector('.project-thread');
       const exit = document.querySelector('.process-exit');
       const canvas = document.querySelector('.process-canvas');
       const track = document.querySelector('.process-track');
       const first = document.querySelector('#catch-line-creative-key path[d]');
-      const start = first.getAttribute('d').trim().match(/^M\\s*([-\\d.]+)\\s+([-\\d.]+)/);
+      const start = first.getAttribute('d').trim().match(/^M\s*([-\d.]+)\s+([-\d.]+)/);
       const output = svg.getBoundingClientRect();
       const mark = exit.getBoundingClientRect();
       const box = canvas.getBoundingClientRect();
