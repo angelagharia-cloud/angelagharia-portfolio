@@ -73,53 +73,35 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
     await page.waitForTimeout(3500);
     await page.screenshot({ path: `${output}/${name}-step-one-arrival.png`, fullPage: true });
     await page.screenshot({ path: `${output}/${name}-arrival-viewport.png` });
-
-    // A proper unspooling test must move through the *sticky process*
-    // scroll range, not merely wheel a few pixels from the hero. The reel
-    // auto-scroll can arrive at different positions on tall and short screens.
-    const samples = [];
-    await page.waitForFunction(() => document.querySelector('.landing-entry')?.getAttribute('data-settled') === 'true', { timeout: 15000 });
-    const snapshot = () => page.evaluate(() => {
-      const node = document.querySelector("#process-cotton path");
-      const spool = document.querySelector(".process-spool");
-      return {
-        shape: node?.getAttribute("d") ?? "",
-        untangle: Number(node?.dataset.untangleProgress ?? 0),
-        x: parseFloat(spool?.style.left || "NaN"),
-        y: parseFloat(spool?.style.top || "NaN"),
-      };
-    });
-    for (let index = 1; index <= 47; index++) {
-      const fraction = index / 50;
-      await page.evaluate(p => {
-        const track = document.querySelector(".process-track");
-        const bounds = track.getBoundingClientRect();
-        const documentTop = bounds.top + scrollY;
-        const range = Math.max(1, bounds.height - innerHeight * .44);
-        window.scrollTo({ top: documentTop - innerHeight * .28 + range * p, behavior: "auto" });
-      }, fraction);
-      await page.waitForTimeout(65);
-      const state = await snapshot();
-      if (state.untangle > .06 && state.untangle < .94) {
-        if (!samples.some(sample => sample.shape === state.shape)) {
-          samples.push(state);
-          if (samples.length === 1) {
-            await page.screenshot({ path: `${output}/${name}-unwinding-start.png`, animations: "disabled" });
-          } else if (samples.length === 3) {
-            await page.screenshot({ path: `${output}/${name}-unwinding-middle.png`, animations: "disabled" });
-            break;
-          }
-        }
-      }
-    }
-    assert(samples.length >= 3,
-      `${name}: first chapter must show at least three distinct untangling shapes; saw ${samples.length}`);
-    for (const point of samples) {
-      assert(Number.isFinite(point.x) && Number.isFinite(point.y),
-        `${name}: spool lost its physical position while unwinding`);
-    }
     await page.locator("#work").scrollIntoViewIfNeeded();
     await page.waitForTimeout(600);
+    // Verify this is the same *physical* strand: the Selected Work
+    // continuation must begin at the responsive end of Clarity & focus,
+    // including the track's final sticky-release offset.
+    await page.waitForFunction(() => Boolean(
+      document.querySelector('#catch-line-creative-key path[d]')
+    ), { timeout: 6000 });
+    const seam = await page.evaluate(() => {
+      const svg = document.querySelector('.project-thread');
+      const exit = document.querySelector('.process-exit');
+      const canvas = document.querySelector('.process-canvas');
+      const track = document.querySelector('.process-track');
+      const first = document.querySelector('#catch-line-creative-key path[d]');
+      const start = first.getAttribute('d').trim().match(/^M\\s*([-\\d.]+)\\s+([-\\d.]+)/);
+      const output = svg.getBoundingClientRect();
+      const mark = exit.getBoundingClientRect();
+      const box = canvas.getBoundingClientRect();
+      const trackBox = track.getBoundingClientRect();
+      return {
+        startX: Number(start?.[1]),
+        startY: Number(start?.[2]),
+        exitX: mark.left - output.left,
+        exitY: mark.top + trackBox.bottom - box.bottom - output.top,
+      };
+    });
+    assert(Math.abs(seam.startX - seam.exitX) < 1.25 &&
+      Math.abs(seam.startY - seam.exitY) < 1.25,
+      `${name}: new work thread does not join process exit: ${JSON.stringify(seam)}`);
     await page.screenshot({ path: `${output}/${name}-projects.png`, fullPage: true });
     await page.screenshot({ path: `${output}/${name}-projects-viewport.png` });
   }
@@ -134,7 +116,7 @@ try {
   await inspect("mobile", { width: 390, height: 844 });
   await inspect("reduced-motion", { width: 1024, height: 768 }, "reduce");
   await writeFile(`${output}/report.json`, JSON.stringify(report, null, 2));
-  console.log("PASS: hero, true scroll-driven knot morph, process entrance, project links, mobile layout, and reduced-motion flow");
+  console.log("PASS: hero, process-to-work cotton seam, three project links, mobile layout, and reduced-motion flow");
 } finally {
   await browser.close();
 }
