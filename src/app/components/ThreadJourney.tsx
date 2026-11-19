@@ -279,10 +279,18 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
 }
 
 export { ProjectThread } from "./ProjectThread"
+// A single continuous cotton path. The first chapter should read like a real,
+// irregular knot of uncertainty; each subsequent chapter lets the thread relax.
+// Keep each chapter's end point continuous with the next one's start so the
+// moving bobbin, its texture and the scroll-progress mask stay synchronized.
 const chapters = [
-  "C150 271 42 277 54 177 C66 84 165 87 127 192 C101 262 103 287 153 277 C225 263 276 126 220 124 C165 122 204 253 321 222",
+  // Noise — tight overlapping loops, reversals and uneven radii (ends at 321,222).
+  "C111 137 75 155 102 218 C130 302 233 292 214 221 C190 155 97 108 103 173 C97 230 185 277 234 238 C289 192 250 111 206 129 C157 147 157 230 215 240 C263 251 308 212 280 176 C263 148 234 161 254 203 C275 251 303 244 321 222",
+  // Patterns — a few wider, purposeful loops (ends at 606,202).
   "C374 208 366 151 401 157 S427 232 469 216 S503 168 533 181 S561 219 606 202",
+  // Insights — the line begins to settle (ends at 918,198).
   "C686 173 714 155 769 174 S842 200 918 198",
+  // Clarity — quiet, nearly straight cotton (ends at 1170,198).
   "C990 196 1060 198 1170 198",
 ]
 // Same tangent and settled slack shape as the last flight frame, in
@@ -345,7 +353,10 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
       const pos = node.getPointAtLength(distance)
       setStage(chapter)
       positionX.set(String(pos.x / 12) + "%")
-      positionY.set(`calc(52.1053% + ${(pos.y - 198) / 3.8}% * var(--loop-depth, 1))`)
+      // Match the visual SVG squash on narrow screens in JS rather than
+      // relying on CSS calc(percent * variable), which is less portable.
+      const depth = window.matchMedia("(max-width: 640px)").matches ? .66 : 1
+      positionY.set(`${52.1053 + ((pos.y - 198) / 3.8) * depth}%`)
       progress.set(distance / total)
       // Rock through the studio take in both directions without a cut
       // between its stationary first and last frames.
