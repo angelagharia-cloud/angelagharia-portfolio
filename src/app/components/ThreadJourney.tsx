@@ -203,7 +203,7 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
       if (value >= 1) { anchor.current?.classList.add("flight-landed"); onArrival() }
       if (!following) return
       const target = Math.max(startScroll, originY + point.y - innerHeight * .61)
-      window.scrollTo({ top: target, behavior: "instant" })
+      window.scrollTo({ top: target, behavior: "auto" })
     })
     const word = anchor.current!.parentElement!
     const controls = animate(
