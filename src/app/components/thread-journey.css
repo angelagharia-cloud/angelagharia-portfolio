@@ -229,7 +229,7 @@
   opacity: var(--rim-shadow, 1);
 }
 @media (min-width: 1024px) {
-  .thread-story .portrait-figure { height: 83%; }
+  .thread-story .portrait-figure { height: 79%; }
 }
 .flight-spool .spool-frames[style*="background-image"] .spool-poster {
   visibility: visible;

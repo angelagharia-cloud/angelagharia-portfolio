@@ -182,19 +182,50 @@ export function CottonFilm({
         startScale + (arrivalWidth / last[2] - startScale) * travel * travel
       const cx = p.left + p.width * 0.24 - width * 0.38 - o.left,
         cy = p.top + p.height * 0.21 - o.top
+      const wordRect = word.getBoundingClientRect()
+      const run = Math.max(3, wordRect.right - o.left - width * 0.04)
+      const pivot = o.left - wordRect.left
+      const releaseIndex = tracking.points.findIndex(
+        (pt, i) =>
+          i <= tracking.contact && (pt[0] - start[0]) * startScale >= run,
+      )
+      const release =
+        releaseIndex < 1 ? Math.round(tracking.contact * 0.38) : releaseIndex
+      const edge = tracking.points[release]
+      const smooth = (v: number) => v * v * (3 - 2 * v)
+      const tilt =
+        frame <= release
+          ? smooth(Math.min(1, frame / Math.max(1, release * 0.8)))
+          : 1 - smooth(Math.min(1, (frame - release) / 13))
       let dx: number, dy: number
-      if (frame <= tracking.contact) {
-        const t = Math.min(1, Math.max(0, (x - start[0]) / (hit[0] - start[0])))
-        dx = t * cx
-        // Carry the rim with the rotating letter until release, then settle
-        // into the tracked approach without moving the shoulder contact.
-        const pivotDistance = o.left - word.getBoundingClientRect().left
-        const slopeDrop =
-          pivotDistance * Math.sin(Math.PI / 45) * Math.min(1, frame / 11)
-        dy =
-          t * cy +
-          scale * (y - start[1] - t * (hit[1] - start[1])) +
-          slopeDrop * (1 - t) ** 2
+      const drop = (pivot + run) * Math.sin(Math.PI / 45)
+      if (frame <= release) {
+        dx =
+          run *
+          Math.max(
+            0,
+            Math.min(1, (x - start[0]) / Math.max(1, edge[0] - start[0])),
+          )
+        dy = (pivot + dx) * Math.sin((tilt * Math.PI) / 45)
+      } else if (frame <= tracking.contact) {
+        const t = Math.max(
+          0,
+          Math.min(1, (x - edge[0]) / Math.max(1, hit[0] - edge[0])),
+        )
+        const fall = Math.max(
+          0,
+          Math.min(1, (y - edge[1]) / Math.max(1, hit[1] - edge[1])),
+        )
+        // The stacked layout also releases to the right before turning toward the jacket.
+        const tangent = Math.min(
+          w * 0.25,
+          Math.max(run, (hit[0] - edge[0]) * startScale),
+        )
+        dx =
+          cx >= run
+            ? run + (cx - run) * t
+            : run + tangent * t * (1 - t) * (1 - t) + (cx - run) * smooth(t)
+        dy = drop + (cy - drop) * fall
       } else {
         const t =
           (frame - tracking.contact) /
@@ -221,8 +252,6 @@ export function CottonFilm({
           { duration: 330 },
         )
       }
-      const tilt =
-        Math.min(1, frame / 11) * Math.max(0, Math.min(1, (27 - frame) / 11))
       word.style.setProperty("--surname-tilt", String(4 * tilt) + "deg")
       if (following)
         window.scrollTo({

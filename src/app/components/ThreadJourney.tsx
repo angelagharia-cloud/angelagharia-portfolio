@@ -10,13 +10,11 @@ import "./thread-journey.css"
 import spoolPoster from "../../imports/opt/hero-spool-detail.webp"
 import spoolFrames from "../../assets/cotton-turntable.webp"
 
-import processPoster from "../../assets/process-bobbin.webp"
-import processFrames from "../../assets/process-turn.webp"
 
 const frameCount = 48
 const columns = 8
 
-function SpoolIllustration({ turns, active, process = false }: { turns: MotionValue<number>; active: boolean; process?: boolean }) {
+function SpoolIllustration({ turns, active }: { turns: MotionValue<number>; active: boolean }) {
   const element = useRef<HTMLSpanElement>(null)
   useEffect(() => {
     const target = element.current
@@ -25,13 +23,13 @@ function SpoolIllustration({ turns, active, process = false }: { turns: MotionVa
     let cancelled = false
     let unsubscribe: (() => void) | undefined
     function draw(turn: number) {
-      if (!process) target!.style.setProperty("--poster-opacity", String(Math.max(0, 1 - turn * 8)))
+      target!.style.setProperty("--poster-opacity", String(Math.max(0, 1 - turn * 8)))
       const index = Math.floor(((turn % 1 + 1) % 1) * frameCount)
       const col = index % columns
       const row = Math.floor(index / columns)
       target!.style.backgroundPosition = `${col * 100 / (columns - 1)}% ${row * 100 / (frameCount / columns - 1)}%`
     }
-    const frames = process ? processFrames : spoolFrames
+    const frames = spoolFrames
     image.src = frames
     image.decode().then(() => {
       if (cancelled) return
@@ -47,8 +45,8 @@ function SpoolIllustration({ turns, active, process = false }: { turns: MotionVa
       target.style.backgroundSize = ""
       target.style.backgroundPosition = ""
     }
-  }, [turns, active, process])
-  return <span ref={element} className="spool-frames"><img src={process ? processPoster : spoolPoster} className="spool-poster" alt="" draggable={false} /></span>
+  }, [turns, active])
+  return <span ref={element} className="spool-frames"><img src={spoolPoster} className="spool-poster" alt="" draggable={false} /></span>
 }
 type FlightRoute = { d: string; release: number; radius: number; contact: number; rebound: number }
 
@@ -242,7 +240,7 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
           : { opacity: 1, rotate: 0, scale: 1 }}
         transition={{ duration: reduced ? 0 : 2.4, times: [0, .646, .733, 1], ease: "easeInOut" }}
       >
-        <SpoolIllustration turns={turns} active={!reduced && Boolean(route)} />
+        <SpoolIllustration turns={turns} active={filmFailed && !reduced && Boolean(route)} />
       </motion.span>
     </span>
   )
