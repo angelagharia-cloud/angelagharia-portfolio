@@ -77,7 +77,7 @@ export function Navigation() {
               media={avatar}
               alt=""
               priority
-              className="h-8 w-8 rounded-full object-cover ring-1 ring-black/10 transition-[box-shadow] duration-300 group-hover:ring-black/25"
+              className="max-[359px]:hidden h-8 w-8 rounded-full object-cover ring-1 ring-black/10 transition-[box-shadow] duration-300 group-hover:ring-black/25"
             />
             <span className="font-serif text-[1.0625rem] leading-none tracking-[-0.01em] text-neutral-950">
               Angel Agharia

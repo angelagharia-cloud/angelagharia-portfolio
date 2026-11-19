@@ -1,8 +1,9 @@
 import studioRoll from "../../assets/cotton-studio-small.webp"
 import studioLarge from "../../assets/cotton-studio.webp"
+import { measureTypeRail, type TypeRail } from "./typeRail"
 import { CottonFilm } from "./CottonFilm"
 import { CottonStrip } from "./CottonStrip"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react"
 import { animate, type MotionValue, motion, useMotionValue, useReducedMotion, useScroll, useSpring, useTransform } from "motion/react"
 import { Link } from "../lib/router"
 import "./thread-journey.css"
@@ -56,6 +57,7 @@ type FlightRoute = { d: string; release: number; radius: number; contact: number
  */
 export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: () => void }) {
   const anchor = useRef<HTMLSpanElement>(null)
+  const railRef = useRef<TypeRail | null>(null)
   const [filmFailed, setFilmFailed] = useState(false)
   const fallback = useCallback(() => setFilmFailed(true), [])
   const [route, setRoute] = useState<FlightRoute | null>(null)
@@ -73,6 +75,7 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
     if (!origin || !portrait || !process) return
     let raf = 0
     function measure() {
+      if (origin!.classList.contains("film-playing")) return
       // Compose the release relative to the real shoulder. A short downhill
       // run cannot throw a sewing spool across several hundred pixels.
       const title = origin!.closest("h1")!
@@ -81,11 +84,16 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
       const bodyWidth = origin!.querySelector<HTMLElement>(".flight-spool")!.offsetWidth * .84
       const titleLeft = title.getBoundingClientRect().left
       const span = label.getBoundingClientRect().right - titleLeft
-      const target = portraitRect.left + portraitRect.width * .27 - bodyWidth * .39
+      const target = portraitRect.left + portraitRect.width * .24 - bodyWidth * .455
       const reach = Math.max(18, Math.min(46, innerWidth * .035))
       const currentSize = parseFloat(getComputedStyle(title).fontSize)
       const nextSize = Math.max(32, Math.min(150, currentSize * (target - reach - titleLeft) / span))
       if (portrait!.closest(".portrait-stage")?.getAttribute("data-side") === "0" && span > 0 && Math.abs(nextSize - currentSize) > .2) title.style.fontSize = nextSize.toFixed(2) + "px"
+      const railGeometry = measureTypeRail(label, origin!, bodyWidth)
+      if (railGeometry) {
+        railRef.current = railGeometry
+        label.style.setProperty("--rail-top", railGeometry.heights[0] + "px")
+      }
       const a = origin!.getBoundingClientRect()
       const p = portrait!.getBoundingClientRect()
       const end = process!.getBoundingClientRect()
@@ -227,7 +235,7 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
 
   return (
     <span ref={anchor} className="spool-origin" aria-hidden="true">
-      {active && !reduced && !filmFailed && <CottonFilm onFallback={fallback} onArrival={onArrival} />}
+      {active && !reduced && !filmFailed && <CottonFilm railRef={railRef} onFallback={fallback} onArrival={onArrival} />}
       {filmFailed && route && active && !reduced && (
         <svg className="flight-thread" fill="none" strokeLinecap="round">
           <defs>
@@ -363,7 +371,8 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
             </svg>}
           </div>
           <motion.div hidden={!active} className="process-spool resting-bobbin" aria-hidden="true"
-            style={{ left: positionX, top: positionY, backgroundPosition: rollFrame }}>
+            style={{ ...({ "--spool-wide": `url("${studioLarge}")`, "--spool-small": `url("${studioRoll}")` } as CSSProperties),
+              left: positionX, top: positionY, backgroundPosition: rollFrame }}>
           </motion.div>
           {words.map((word, i) => <div key={word.title} className="process-word" data-current={active && stage === i} style={{ left: word.x }}>
             <span className="process-number">0{i + 1}</span>

@@ -12,6 +12,8 @@ import { SectionLabel } from "./system/SectionLabel"
 import { ProjectCover } from "./covers"
 
 import { PortraitReveal } from "./PortraitReveal"
+import muslin from "../../assets/muslin-floor.webp"
+import muslinSmall from "../../assets/muslin-floor-small.webp"
 
 import { HeroSpool, ProjectThread, ThreadProcess } from "./ThreadJourney"
 
@@ -74,11 +76,15 @@ export function HomePage() {
     if (threadStarted || arrived) return
     const section = document.querySelector(".process-canvas")
     if (!section) return
+    let inView = false
+    const activate = () => { if (inView && window.scrollY > 0) setArrived(true) }
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) setArrived(true)
+      inView = entry.isIntersecting
+      activate()
     }, { threshold: .35 })
     observer.observe(section)
-    return () => observer.disconnect()
+    window.addEventListener("scroll", activate, { passive: true })
+    return () => { observer.disconnect(); window.removeEventListener("scroll", activate) }
   }, [threadStarted, arrived])
   const followThread = () => {
     if (threadStarted && !arrived) return
@@ -150,7 +156,7 @@ function Hero({ take, arrived, threadStarted, onFollowThread, onArrival }: { tak
             <MaskLine delay={0.08}>Angel</MaskLine>
             <span className="hero-name-with-thread">
               <MaskLine delay={0.18} className="italic text-[#2855D8]">
-                Aghari<span className="release-letter">a</span>
+                Aghari<span className="release-letter">a</span><i className="type-baseline" aria-hidden="true" />
               </MaskLine>
               <HeroSpool key={take} active={threadStarted} onArrival={onArrival} />
               <button type="button" className="spool-trigger" onClick={onFollowThread}
@@ -207,6 +213,10 @@ function Hero({ take, arrived, threadStarted, onFollowThread, onArrival }: { tak
           transition={{ duration: 1.1, ease: EASE_OUT, delay: 0.12 }}
           className="hero-subject relative mx-auto w-full max-w-[22rem] sm:max-w-[27rem] lg:col-span-6 lg:max-w-none"
         >
+          <picture className="textile-floor" aria-hidden="true">
+            <source media="(max-width:1023px)" srcSet={muslinSmall} />
+            <img src={muslin} width={1600} height={900} alt="" decoding="async" />
+          </picture>
           <PortraitReveal inFlight={threadStarted && !arrived} />
         </motion.div>
       </div>

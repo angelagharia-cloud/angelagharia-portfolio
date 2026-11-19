@@ -217,7 +217,7 @@
   transform-origin: left top;
   transform: rotate(var(--surname-tilt, 0deg));
 }
-.hero-name-with-thread .spool-origin { right: 16%; top: 4%; }
+.hero-name-with-thread .spool-origin { right: 22%; top: 6%; }
 .flight-spool::after {
   content: "";
   position: absolute;
@@ -332,11 +332,15 @@
   width: calc(var(--take-width) * .208333);
   aspect-ratio: 256 / 216;
   transform: translate(-50%, -50%);
-  background: url("../../assets/cotton-studio.webp") no-repeat;
+  background-repeat: no-repeat;
   background-size: 800% 600%;
   filter: none;
 }
 .process-spool.resting-bobbin[hidden] { display:none; }
+.process-spool.resting-bobbin:not([hidden]) { background-image:var(--spool-wide); }
+@media (max-width:640px) {
+  .process-spool.resting-bobbin:not([hidden]) { background-image:var(--spool-small); }
+}
 @media (min-width: 1024px) {
   .process-intro { display:block; max-width:46%; }
   .process-intro p { margin-top: 1.3rem; }
@@ -344,9 +348,6 @@
 }
 @media (max-width: 1023px) {
   .process-question { left: max(3rem, 9%); max-width: 85%; }
-}
-@media (max-width: 640px) {
-  .process-spool.resting-bobbin { background-image: url("../../assets/cotton-studio-small.webp"); }
 }
 @media (min-width:1024px) {
   .hero-copy > h1 { display:flex; align-items:baseline; gap:.18em; width:max-content; }
@@ -362,7 +363,7 @@
 .landing-entry[data-settled="true"] .ground-shadow { filter: none; }
 .settled-tail { position:absolute; width:var(--body); height:auto; transform:translate(-50%,-50%); overflow:visible; }
 .spool-trigger {
-  position:absolute; right:16%; top:4%; transform:translate(50%,-50%);
+  position:absolute; right:22%; top:6%; transform:translate(50%,-50%);
   width:clamp(70px,7.4vw,116px); aspect-ratio:384/326; min-height:44px;
   z-index:16; border-radius:48%; background:transparent; cursor:pointer;
 }
@@ -389,3 +390,16 @@
   mask-image:radial-gradient(ellipse at top right, black 18%,transparent 74%);
 }
 #work .shell > div:first-child > p { padding-right:1.85rem; }
+@media (min-width:1024px) {
+  #work .shell > div:first-child > p { padding-right:4.5rem; }
+}
+.type-baseline { display:inline-block; width:0; height:0; vertical-align:baseline; }
+.hero-name-with-thread .spool-origin, .hero-name-with-thread .spool-trigger { top:var(--rail-top,6%); }
+.hero-composition[style*="--camera-depth"] :is(.hero-copy > p,.hero-copy > dl,.hero-actions,.portrait-controls) {
+  opacity:calc(1 - .78 * var(--camera-depth)) !important;
+}
+@media(max-width:360px) {
+  .hero-composition:has(.portrait-stage[data-open="true"]) .hero-actions { grid-area:4 / 1 / 5 / 3; }
+  .hero-composition:has(.portrait-stage[data-open="true"]) .hero-copy > .t-lead { grid-row:5; }
+  .hero-composition:has(.portrait-stage[data-open="true"]) .hero-copy > dl { grid-row:6; }
+}

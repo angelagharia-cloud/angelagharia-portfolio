@@ -1,8 +1,9 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, type RefObject } from "react"
+import type { TypeRail } from "./typeRail"
 import spin from "../../assets/cotton-studio.webp"
 import smallSpin from "../../assets/cotton-studio-small.webp"
 import fibre from "../../imports/opt/cotton-fibre.webp"
-import { flushSync } from "react-dom"
+import { createPortal, flushSync } from "react-dom"
 
 const clamp = (t: number) => Math.max(0, Math.min(1, t))
 const smooth = (t: number) => clamp(t) ** 2 * (3 - 2 * clamp(t))
@@ -40,13 +41,14 @@ function strand(ctx: CanvasRenderingContext2D, texture: HTMLImageElement, points
   }
 }
 
-export function CottonFilm({ onFallback, onArrival }: { onFallback: () => void; onArrival: () => void }) {
+export function CottonFilm({ railRef, onFallback, onArrival }: { railRef: RefObject<TypeRail | null>; onFallback: () => void; onArrival: () => void }) {
   const ref = useRef<HTMLCanvasElement>(null)
   useEffect(() => {
     const canvas = ref.current!
     const ctx = canvas.getContext("2d")
     if (!ctx) { onFallback(); return }
-    const anchor = canvas.closest<HTMLElement>(".spool-origin")!
+    const anchor = document.querySelector<HTMLElement>(".spool-origin")!
+    const scene = anchor.closest<HTMLElement>(".hero-composition")!
     const word = anchor.parentElement!
     const jacket = document.querySelector<HTMLElement>("#portrait-stage img")!
     const entry = document.querySelector<HTMLElement>(".landing-entry")!
@@ -55,7 +57,8 @@ export function CottonFilm({ onFallback, onArrival }: { onFallback: () => void; 
     atlas.src = innerWidth <= 640 ? smallSpin : spin
     grain.src = fibre
     let raf = 0, start = 0, previous = 0, disposed = false, landed = false, following = true, touched = false
-    const stop = () => { following = false }
+    let cameraScale = 1, cameraX = 0, cameraY = 0, disengaged = Infinity
+    const stop = () => { following = false; disengaged = Math.min(disengaged, performance.now()) }
     const inputs = ["wheel", "touchstart", "keydown"] as const
     inputs.forEach(event => window.addEventListener(event, stop, { passive: true }))
     const initialScroll = scrollY
@@ -73,21 +76,44 @@ export function CottonFilm({ onFallback, onArrival }: { onFallback: () => void; 
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
       ctx.clearRect(0, 0, w, h)
-      const o = anchor.getBoundingClientRect(), p = jacket.getBoundingClientRect(), e = entry.getBoundingClientRect()
+      const sceneBox = scene.getBoundingClientRect()
+      const baseX = sceneBox.left - cameraX, baseY = sceneBox.top - cameraY
+      // Physics runs in the unprojected page. DOM scenery and the keyed
+      // foreground are then photographed with the same camera transform.
+      const worldBox = (el: Element) => {
+        const box = el.getBoundingClientRect()
+        return {
+          left: baseX + (box.left - sceneBox.left) / cameraScale,
+          right: baseX + (box.right - sceneBox.left) / cameraScale,
+          top: baseY + (box.top - sceneBox.top) / cameraScale,
+          width: box.width / cameraScale, height: box.height / cameraScale,
+        }
+      }
+      const scrollBefore = scrollY
+      const o = worldBox(anchor), p = worldBox(jacket), e = entry.getBoundingClientRect()
       const width = anchor.querySelector<HTMLElement>(".flight-spool")!.offsetWidth
       const size = width * .84
-      const run = word.getBoundingClientRect().right - o.left
-      const pivot = o.left - word.getBoundingClientRect().left
-      const edgeY = o.top + (pivot + run) * Math.sin(Math.PI / 45)
-      const shoulderX = p.left + p.width * .27 - size * .39
-      const shoulderY = p.top + p.height * .205
+      const railShape = railRef.current
+      const run = railShape?.distance ?? worldBox(word).right - o.left
+      const pivot = o.left - worldBox(word).left
+      const surface = railShape?.heights
+      const descent = surface ? surface[surface.length - 1] - surface[0] : 0
+      const edgeY = o.top + descent + (pivot + run) * Math.sin(Math.PI / 45)
+      // At 21% of the original cutout height the first opaque jacket
+      // pixel is 24% across. Use the rim, not the centre, for contact.
+      const shoulderX = p.left + p.width * .24 - size * .455
+      const shoulderY = p.top + p.height * .21
       if (!timing) {
         const drop = Math.max(4, shoulderY - edgeY)
         const flight = Math.sqrt(2 * drop / gravity)
         const speed = Math.max(12, (shoulderX - o.left - run) / flight)
-        const rollEnd = 2 * run / speed
-        const hit = rollEnd + flight
-        const takeoff = -.19 * gravity * flight
+        const naturalRoll = 2 * run / speed
+        // Compress the release and airborne beats by the same ratio:
+        // the exit tangent stays continuous on tall and narrow layouts.
+        const rollEnd = Math.min(naturalRoll, .72 + Math.min(.17, run / 500))
+        const releaseRate = naturalRoll / rollEnd
+        const hit = rollEnd + flight / releaseRate
+        const takeoff = -Math.min(.19 * gravity * flight * releaseRate, Math.sqrt(2 * gravity * size * .22))
         const returnSpeed = Math.sqrt(takeoff ** 2 + 2 * gravity * Math.max(1, e.top - shoulderY))
         const ground = hit + (returnSpeed - takeoff) / gravity
         const finish = ground + 2 * returnSpeed * .115 * 1.24 / gravity + .14
@@ -106,7 +132,9 @@ export function CottonFilm({ onFallback, onArrival }: { onFallback: () => void; 
       let x: number, y: number
       if (time <= rollEnd) {
         x = o.left + run * u * u
-        y = o.top + (pivot + run * u * u) * Math.sin(tilt * Math.PI / 45)
+        const sample = u * u * ((surface?.length ?? 1) - 1)
+        const contact = surface ? lerp(surface[Math.floor(sample)], surface[Math.ceil(sample)], sample % 1) - surface[0] : 0
+        y = o.top + contact + (pivot + run * u * u) * Math.sin(tilt * Math.PI / 45)
       } else if (time <= hit) {
         x = lerp(o.left + run, shoulderX, v)
         y = lerp(edgeY, shoulderY, v * v)
@@ -118,7 +146,7 @@ export function CottonFilm({ onFallback, onArrival }: { onFallback: () => void; 
       }
       // On narrow screens, let the bobbin clear the controls before it
       // reaches the margin alongside the biography and process introduction.
-      const copyTop = w < 1024 ? document.querySelector<HTMLElement>(".hero-copy > .t-lead")!.getBoundingClientRect().top : 0
+      const copyTop = w < 1024 ? worldBox(document.querySelector<HTMLElement>(".hero-copy > .t-lead")!).top : 0
       const rail = Math.max(diameter * .53 + 2, 15)
       function lane(atY: number) {
         const clear = smooth((atY - shoulderY - 38) / Math.max(90, copyTop - shoulderY - 65))
@@ -141,8 +169,26 @@ export function CottonFilm({ onFallback, onArrival }: { onFallback: () => void; 
       if (!landed && following && time > rollEnd)
         window.scrollTo({ top: lerp(scrollY, followTarget, 1 - Math.exp(-12 * dt)), behavior: "instant" })
       entry.style.setProperty("--contact-shadow", String(smooth(1 - clamp(Math.abs(e.top - y) / size))))
-      const offset = anchor.getBoundingClientRect().top - o.top
+      const offset = scrollBefore - scrollY
       y += offset
+      const push = smooth((u - .10) / .72) * (1 - smooth((time - rollEnd * .85) / (hit + .22 - rollEnd * .85)))
+        * (1 - smooth((now - disengaged) / 300))
+      cameraScale = 1 + push * (w < 640 ? .39 : .72)
+      const aimX = lerp(x, shoulderX, .12 * v)
+      cameraX = (1-cameraScale) * (aimX-baseX) + (w*.54-aimX) * push * .32
+      cameraY = (1-cameraScale) * (y-baseY-offset) + (h*.40-y) * push * .32
+      if (push > 0) {
+        scene.style.setProperty("--camera-depth", String(push))
+        scene.style.transformOrigin = "0 0"
+        scene.style.transform = `translate3d(${cameraX}px,${cameraY}px,0) scale(${cameraScale})`
+      } else {
+        scene.style.removeProperty("--camera-depth")
+        scene.style.removeProperty("transform")
+        scene.style.removeProperty("transform-origin")
+      }
+      ctx.translate(baseX+cameraX, baseY+offset+cameraY)
+      ctx.scale(cameraScale,cameraScale)
+      ctx.translate(-baseX,-baseY-offset)
       const lag = Math.exp(-7 * t) * Math.sin(16 * t)
       const end = { x: x - diameter * .24, y: y + diameter * .20 }
       const root = { x: o.left + size * .15, y: o.top + offset + size * .30 }
@@ -208,7 +254,7 @@ export function CottonFilm({ onFallback, onArrival }: { onFallback: () => void; 
         strand(ctx, grain, tail, w < 640 ? 1.25 : 1.65)
       }
       if (time < finish) {
-        const phase = 47 * clamp(u * u * .22 + v * .30 + t * .48)
+        const phase = 47 * clamp(u * u * .48 + v * .22 + t * .30)
         const frame = Math.floor(phase)
         const cellW = atlas.naturalWidth / 8, cellH = atlas.naturalHeight / 6
         ctx.save()
@@ -245,11 +291,14 @@ export function CottonFilm({ onFallback, onArrival }: { onFallback: () => void; 
       await new Promise<void>(done => requestAnimationFrame(() => requestAnimationFrame(() => done())))
       if (disposed) return
       const figure = jacket.closest(".portrait-figure")
-      await Promise.all((figure?.getAnimations() ?? []).map(animation => animation.finished.catch(() => {})))
+      await Promise.all((figure?.parentElement?.getAnimations({subtree:true}) ?? []).map(animation => animation.finished.catch(() => {})))
       if (!disposed) raf = requestAnimationFrame(paint)
     }).catch(() => { if (!disposed) onFallback() })
     return () => {
       disposed = true
+      scene.style.removeProperty("--camera-depth")
+      scene.style.removeProperty("transform")
+      scene.style.removeProperty("transform-origin")
       cancelAnimationFrame(raf)
 
       inputs.forEach(event => window.removeEventListener(event, stop))
@@ -258,6 +307,6 @@ export function CottonFilm({ onFallback, onArrival }: { onFallback: () => void; 
       word.style.removeProperty("--letter-load")
       entry.style.removeProperty("--contact-shadow")
     }
-  }, [onFallback, onArrival])
-  return <canvas ref={ref} aria-hidden="true" className="cotton-film" />
+  }, [onFallback, onArrival, railRef])
+  return createPortal(<canvas ref={ref} aria-hidden="true" className="cotton-film" />, document.body)
 }
