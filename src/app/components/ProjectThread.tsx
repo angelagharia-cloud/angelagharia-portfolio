@@ -41,26 +41,8 @@ type Catch = {
   arrival: number
 }
 
-function CornerCatch({
-  shot,
-  cursor,
-  release,
-}: {
-  shot: Catch
-  release: MotionValue<number>
-  cursor: MotionValue<number>
-}) {
-  const { id, x, y, path, start, arrival } = shot
-  const line = useTransform(cursor, [start, arrival], [0, 1])
-  const swing = useTransform(() => {
-    if (id !== projects[0]) return ""
-    const t = release.get()
-    // Tilt only the loose span. Fade the swing before the first card takes its weight.
-    const slack = Math.max(0, 1 - line.get() * 4)
-    const angle = Math.sin(t * Math.PI * 2) * (1 - t) * slack * shot.swingRoom / 100
-    const drop = 1 - .75 * (1 - t) * slack
-    return `translate(${shot.anchorX} ${start}) matrix(1 0 ${angle} ${drop} 0 0) translate(${-shot.anchorX} ${-start})`
-  })
+function CornerCatch({ shot, cursor }: { shot: Catch; cursor: MotionValue<number> }) {
+  const { id, x, y, arrival } = shot
   const frame = useTransform(cursor, [arrival, shot.finish], [0, 47])
   const wrap = useTransform(frame, [4, 43], [0, 1])
   const opacity = useTransform(frame, [0, 4], [0, 1])
@@ -94,25 +76,6 @@ function CornerCatch({
   }, [shot, tension])
   return (
     <>
-      <mask
-        id={`catch-line-${id}`}
-        maskUnits="userSpaceOnUse"
-        x="0"
-        y="0"
-        width="100%"
-        height={y + 100}
-      >
-        <motion.path
-          d={path}
-          fill="none"
-          stroke="white"
-          strokeWidth="9"
-          style={{ pathLength: line }}
-        />
-      </mask>
-      <motion.g className="catch-leading-fibre" transform={swing}><g mask={`url(#catch-line-${id})`}>
-        <CottonStrip curve={path} width={3.2} step={12} />
-      </g></motion.g>
       <motion.g style={{opacity}}>
         {[[shot.inletX, shot.inletY], [x-19,y+19], [x-13,y+28], [x-11,y+33]].map(([cx,cy]) =>
           <ellipse key={cy} cx={cx} cy={cy} rx="2.7" ry="1.7" fill="#574638" stroke="#d5c5ad" strokeWidth=".8" />)}
@@ -404,13 +367,13 @@ export function ProjectThread({ active }: { active: boolean }) {
             <motion.path d={fibre} stroke="#ede0cd" strokeWidth=".85"
               strokeOpacity=".85" style={{ pathLength: reveal }} />
             <g mask="url(#single-cotton-reveal)" className="continuous-cotton-texture">
-              <CottonStrip curve={fibre} width={3.5} step={15} />
+              <CottonStrip curve={fibre} width={3.5} step={19} />
             </g>
           </g>
         </>
       )}
       {active && shots.map(shot => (
-        <CornerCatch key={shot.id} shot={shot} cursor={cursor} release={release} />
+        <CornerCatch key={shot.id} shot={shot} cursor={cursor} />
       ))}
     </svg>
   )
