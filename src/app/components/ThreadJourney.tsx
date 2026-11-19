@@ -65,8 +65,9 @@ export function HeroSpool({ active }: { active: boolean }) {
       const p = portrait!.getBoundingClientRect()
       const end = process!.getBoundingClientRect()
       // Near the outer jacket/shoulder, NEVER the face or facts controls.
-      const x = p.left + p.width * .29 - a.left
-      const y = p.top + p.height * .38 - a.top
+      const compact = window.matchMedia("(max-width: 767px)").matches
+      const x = p.left + p.width * (compact ? .68 : .29) - a.left
+      const y = p.top + p.height * (compact ? .46 : .38) - a.top
       const ex = end.left + end.width * 32 / 1200 - a.left
       const ey = end.top + end.height * 195 / 380 - a.top
 
