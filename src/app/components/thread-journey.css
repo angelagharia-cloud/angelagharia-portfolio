@@ -443,3 +443,21 @@
   .hero-composition:has(.portrait-stage[data-open="true"]) .hero-copy > .t-lead { grid-row:5; }
   .hero-composition:has(.portrait-stage[data-open="true"]) .hero-copy > dl { grid-row:6; }
 }
+
+
+/* Discreet cue: the knot is interactive, not a static illustration. */
+.process-scroll-cue {
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  color: #756f67;
+  font-size: .7rem;
+  font-weight: 650;
+  line-height: 1.4;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+.process-scroll-cue > span { color: #2855d8; font-size: 1rem; font-weight: 500; }
+@media (prefers-reduced-motion: reduce) {
+  .process-scroll-cue { display: none; }
+}
