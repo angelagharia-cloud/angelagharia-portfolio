@@ -112,8 +112,6 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
 
       // Three connected beats: roll off the type → soft shoulder contact
       // → a damped rebound → falling into the research-process canvas.
-      const stacked = window.matchMedia("(max-width: 1023px)").matches
-      const rail = document.documentElement.clientWidth - a.left - 13
       const word = origin!.parentElement!.getBoundingClientRect()
       const run = word.right - a.left - diameter * .05
       const pivot = a.left - word.left
@@ -130,9 +128,10 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
         roll += ` L ${rx} ${ry}`
       }
       const lead = Math.max(12, Math.min(130, (x - rx) * .32))
-      const approach = roll + (stacked
-        ? ` C ${rx + lead} ${ry + lead * Math.tan(angle)} ${rail} ${ry + 45} ${rail} ${ry + 110} C ${rail} ${y * .68} ${rail} ${y - p.height * .34} ${x - 52} ${y - 62} Q ${x - 43} ${y - 32} ${x} ${y}`
-        : ` C ${rx + lead} ${ry + lead * Math.tan(angle)} ${x - lead} ${Math.max(ry, y - 36)} ${x} ${y}`)
+      // The SVG fallback follows the same direct physical approach as
+      // the filmed spool on phones and desktops: no edge-hugging detour.
+      const approach = roll +
+        ` C ${rx + lead} ${ry + lead * Math.tan(angle)} ${x - lead} ${Math.max(ry, y - 36)} ${x} ${y}`
       const bounce = ` C ${x - 9} ${y - 15} ${x - 29} ${y - 24} ${x - 35} ${y - 15}`
       const gutter = end.left * .38 - a.left
       const entry = end.top - a.top
@@ -293,49 +292,6 @@ const chapters = [
   // Clarity — quiet, nearly straight cotton (ends at 1170,198).
   "C990 196 1060 198 1170 198",
 ]
-
-/**
- * Untangle chapter one instead of merely drawing an immutable squiggle.
- * Each of the nine original Bézier coils has an individual release delay, so
- * the knots loosen sequentially into one quiet, slightly imperfect strand.
- * The origin (120,195) and the exit (321,222) never move: the landing spool
- * and the next chapter can stay physically connected at every scroll position.
- */
-const originalNoise = chapters[0].match(/-?\d+(?:\.\d+)?/g)!.map(Number)
-const noiseSegments = originalNoise.length / 6
-const noiseX = (t: number) => 120 + 201 * t
-const noiseY = (t: number) => 195 + 27 * t + 5 * Math.sin(t * Math.PI * 2) * (1 - t)
-const clamp01 = (t: number) => Math.min(1, Math.max(0, t))
-const settle = (t: number) => {
-  const p = clamp01(t)
-  return p * p * (3 - 2 * p)
-}
-const tween = (from: number, to: number, t: number) => from + (to - from) * t
-
-function unwindingNoise(progress: number) {
-  const result: string[] = []
-  for (let i = 0; i < noiseSegments; i++) {
-    // Early coils release slightly before the next one, with no end-frame jump.
-    const delay = i * .035
-    const released = settle((progress - delay) / (1 - delay))
-    const u0 = i / noiseSegments
-    const u1 = (i + 1) / noiseSegments
-    const fromX = noiseX(u0), fromY = noiseY(u0)
-    const toX = noiseX(u1), toY = noiseY(u1)
-    const wobble = 3 * (1 - u0) * Math.sin(i * 2.15)
-    const straight = [
-      tween(fromX, toX, 1 / 3), tween(fromY, toY, 1 / 3) + wobble,
-      tween(fromX, toX, 2 / 3), tween(fromY, toY, 2 / 3) - wobble,
-      toX, toY,
-    ]
-    const coords = straight.map((value, j) =>
-      tween(originalNoise[i * 6 + j], value, released).toFixed(2),
-    )
-    result.push("C" + coords.join(" "))
-  }
-  return result.join(" ")
-}
-
 // Same tangent and settled slack shape as the last flight frame, in
 // hundredths of the spool width. It stays on the page as more cotton pays out.
 const settledTail = Array.from({ length: 25 }, (_, i) => {
@@ -361,7 +317,6 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
   const startX = 120 // 10% of the 1200-unit process canvas; safely in step 1
   const entryCurve = `M${startX} 195`
   const curve = entryCurve + " " + chapters.join(" ")
-  const liveCurve = useMotionValue(curve)
   const positionX = useMotionValue(`${startX / 12}%`)
   const positionY = useMotionValue("51.316%")
   const progress = useMotionValue(0)
@@ -372,101 +327,61 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
 
   useEffect(() => {
     const node = path.current!
-    const measuringPath = document.createElementNS("http://www.w3.org/2000/svg", "path")
-    // Measure chapter boundaries on the fully untangled path; chapters 2-4
-    // never shift when the knot in chapter one changes its length.
-    let prefix = entryCurve + " " + unwindingNoise(1)
-    measuringPath.setAttribute("d", prefix)
-    const stops = [0, measuringPath.getTotalLength()]
-    for (const chapter of chapters.slice(1)) {
-      prefix += " " + chapter
-      measuringPath.setAttribute("d", prefix)
-      stops.push(measuringPath.getTotalLength())
-    }
-    const firstMeasure = document.createElementNS("http://www.w3.org/2000/svg", "path")
-    // Start this scroll chapter at the exact position where the falling spool
-    // settled, even when landing auto-scrolls partway into the sticky section.
+    const total = node.getTotalLength()
+    // The tangle is much longer than the straight portion. Map the same
+    // scroll distance to each chapter so the last two stages remain legible.
+    const measure = document.createElementNS("http://www.w3.org/2000/svg", "path")
+    let prefix = entryCurve
+    const stops = [0, ...chapters.map(segment => {
+      prefix += " " + segment
+      measure.setAttribute("d", prefix)
+      return measure.getTotalLength()
+    })]
+    // The camera may have moved the sticky stage during the fall. Start
+    // its scroll travel at the exact frame where the landing settled.
     const travelAtScroll = () => {
       const box = track.current!.getBoundingClientRect()
-      return clamp01((innerHeight * .28 - box.top) / Math.max(1, box.height - innerHeight * .44))
+      return Math.max(0, Math.min(1, (innerHeight * .28 - box.top) / Math.max(1, box.height - innerHeight * .44)))
     }
     const arrival = active && fromHero && !reduced ? travelAtScroll() : 0
     function draw(value: number) {
       const travel = (value - arrival) / Math.max(.001, 1 - arrival)
       const phase = active ? (reduced ? 4 : Math.max(0, Math.min(4, travel * 4))) : 0
-      const chapterIndex = Math.min(3, Math.floor(phase))
-      // Expose the real morph state for automated browser verification.
-      // First lay out the complete physical knot; only then pull the
-      // standing coils taut. This gives the viewer time to SEE the tangle
-      // before its loops open and straighten, like untying real cotton.
-      const revealEnd = .42
-      const release = settle((phase - revealEnd) / (1 - revealEnd))
-      node.dataset.untangleProgress = release.toFixed(3)
-
-      // A single physical strand changes material shape, not just mask opacity.
-      const noise = unwindingNoise(release)
-      const nextCurve = entryCurve + " " + noise + " " + chapters.slice(1).join(" ")
-      if (nextCurve !== liveCurve.get()) {
-        node.setAttribute("d", nextCurve)
-        liveCurve.set(nextCurve)
-      }
-
-      let distance: number
-      if (phase < 1) {
-        firstMeasure.setAttribute("d", entryCurve + " " + noise)
-        // Spool lays the full tangled yarn by 42% of chapter one, then
-        // pauses at its exit while the attached knot itself comes undone.
-        distance = firstMeasure.getTotalLength() *
-          Math.min(1, phase / revealEnd)
-      } else {
-        distance = stops[chapterIndex] + (phase - chapterIndex) *
-          (stops[chapterIndex + 1] - stops[chapterIndex])
-      }
-      const total = Math.max(1, node.getTotalLength())
-      const pos = node.getPointAtLength(Math.min(total, distance))
-      setStage(chapterIndex)
+      const chapter = Math.min(3, Math.floor(phase))
+      const distance = stops[chapter] + (phase - chapter) * (stops[chapter + 1] - stops[chapter])
+      const pos = node.getPointAtLength(distance)
+      setStage(chapter)
       positionX.set(String(pos.x / 12) + "%")
-      // Match the squashed SVG coordinates used on narrow phones; do not
-      // rely on calc(percent * custom property) across browser engines.
+      // Match the visual SVG squash on narrow screens in JS rather than
+      // relying on CSS calc(percent * variable), which is less portable.
       const depth = window.matchMedia("(max-width: 640px)").matches ? .66 : 1
       positionY.set(`${52.1053 + ((pos.y - 198) / 3.8) * depth}%`)
-      progress.set(Math.min(1, distance / total))
-
-      // Turn according to scroll progress rather than deforming path length,
-      // so contraction of a loop cannot make the bobbin spin backwards.
-      const cycle = phase * .72
+      progress.set(distance / total)
+      // Rock through the studio take in both directions without a cut
+      // between its stationary first and last frames.
+      const cycle = distance / 210
       const frame = Math.round(47 * (.5 + .5 * Math.cos(Math.PI * cycle)))
-      rollFrame.set(String((frame % 8) * 100 / 7) + "% " +
-        String(Math.floor(frame / 8) * 20) + "%")
+      rollFrame.set(String((frame % 8) * 100 / 7) + "% " + String(Math.floor(frame / 8) * 20) + "%")
     }
-    let request = 0
-    const update = () => {
-      cancelAnimationFrame(request)
-      request = requestAnimationFrame(() => draw(travelAtScroll()))
-    }
-    draw(travelAtScroll())
-    window.addEventListener("scroll", update, { passive: true })
+    const update = () => draw(travelAtScroll())
+    update()
+    window.addEventListener("scroll", update, { passive:true })
     window.addEventListener("resize", update)
-    return () => {
-      cancelAnimationFrame(request)
-      window.removeEventListener("scroll", update)
-      window.removeEventListener("resize", update)
-    }
-  }, [active, fromHero, entryCurve, reduced, positionX, positionY, progress, rollFrame, liveCurve])
+    return () => { window.removeEventListener("scroll", update); window.removeEventListener("resize", update) }
+  }, [active, fromHero, entryCurve, reduced, positionX, positionY, progress, rollFrame])
 
   return (
     <section id="design-process" aria-labelledby="process-heading" className="thread-process">
       <div className="shell">
         <div className="process-topline">
           <span className="t-eyebrow text-neutral-500">The thread of reason / How I design</span>
-          <span className="process-scroll-cue">Scroll to untangle <span aria-hidden="true">↓</span></span>
         </div>
         <div className="process-intro">
           <h2 id="process-heading" className="t-h2 text-neutral-950">Making sense of the <em>mess.</em></h2>
           <p className="max-w-sm text-sm leading-relaxed text-neutral-600">Design rarely starts with a straight line. I explore, connect and refine until the right solution becomes clear.</p>
         </div>
         <div className="process-track" ref={track}>
-        <div className="process-canvas" aria-label="An interactive cotton thread that physically untangles as you scroll, moving from uncertainty into clarity">
+        <div className="process-canvas" aria-label="A single continuous cotton thread moving from tangled uncertainty to clarity">
           <div className="process-question" key={stage}>
             <p>{words[stage].question}</p>
           </div>
@@ -474,7 +389,9 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
             <mask id="process-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="380">
               <motion.path ref={path} d={curve} fill="none" stroke="white" strokeWidth="18" style={{ pathLength: progress }} />
             </mask>
-            <g mask="url(#process-cotton)"><CottonStrip curve={liveCurve} width={3.45} step={12} screenWidth /></g></svg>
+            <g mask="url(#process-cotton)"><CottonStrip curve={curve} width={3.45} step={8} screenWidth /></g></svg>
+          {/* Exact end of Clarity & focus. The falling portfolio cotton begins at this same physical point. */}
+          <span className="process-exit" aria-hidden="true" />
           <div aria-hidden="true" className="landing-entry" data-settled={active} style={{ left: String(startX / 12) + "%" }}>
             <motion.span className="ground-shadow" style={{ opacity: groundShadow }} />
           </div>
