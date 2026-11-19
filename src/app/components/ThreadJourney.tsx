@@ -1,3 +1,4 @@
+import { CottonStrip } from "./CottonStrip"
 import { useEffect, useRef, useState } from "react"
 import { animate, type MotionValue, motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useTransform } from "motion/react"
 import { Link } from "../lib/router"
@@ -174,15 +175,13 @@ export function HeroSpool({ active }: { active: boolean }) {
         <svg className="flight-thread" fill="none" strokeLinecap="round">
           <defs>
             <mask id="laid-cotton" maskUnits="userSpaceOnUse" x="-5000" y="-5000" width="10000" height="20000">
-              <motion.path d={route.d} stroke="white" strokeWidth="5" style={{ pathLength: laid }} />
+              <motion.path d={route.d} stroke="white" strokeWidth="9" style={{ pathLength: laid }} />
             </mask>
           </defs>
           <g mask="url(#laid-cotton)">
-            <path d={route.d} stroke="#927751" strokeWidth="1.85" />
-            <path d={route.d} stroke="#eee1c8" strokeWidth="1.1" strokeDasharray="2.8 1.5" />
+            <CottonStrip curve={route.d} />
           </g>
-          <motion.path d={looseEnd} stroke="#927751" strokeWidth="1.85" />
-          <motion.path d={looseEnd} stroke="#eee1c8" strokeWidth="1.1" strokeDasharray="2.8 1.5" />
+          <CottonStrip curve={looseEnd} />
         </svg>
       )}
       <motion.span
@@ -260,7 +259,12 @@ export function ProjectThread({ active }: { active: boolean }) {
 
   return (
     <svg ref={svg} aria-hidden="true" className="project-thread">
-      {active && <motion.path d={route} fill="none" stroke="#987f60" strokeWidth="1.6" strokeLinecap="round" style={{ pathLength: progress }} />}
+      {active && route && <>
+        <mask id="project-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="20000">
+          <motion.path d={route} fill="none" stroke="white" strokeWidth="9" style={{ pathLength: progress }} />
+        </mask>
+        <g mask="url(#project-cotton)"><CottonStrip curve={route} /></g>
+      </>}
     </svg>
   )
 }
@@ -316,9 +320,10 @@ export function ThreadProcess({ active }: { active: boolean }) {
         <div ref={canvas} className="process-canvas" aria-label="An illustration showing a tangled thread gradually becoming a straight line">
           <svg viewBox="0 0 1200 380" preserveAspectRatio="none" className="process-path">
             <path d={processPath} fill="none" stroke="#e7ddd1" strokeWidth="3.8" strokeLinecap="round"/>
-            <motion.path ref={path} d={processPath} fill="none" stroke="#9a8065" strokeWidth="3.4"
-              strokeLinecap="round" style={{ pathLength: progress }} />
-          </svg>
+            <mask id="process-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="380">
+              <motion.path ref={path} d={processPath} fill="none" stroke="white" strokeWidth="12" style={{ pathLength: progress }} />
+            </mask>
+            <g mask="url(#process-cotton)"><CottonStrip curve={processPath} width={6} /></g></svg>
           <motion.div className="process-spool" aria-hidden="true"
             style={{ left: positionX, top: positionY, transform: "translate(-50%, -50%)" }}>
             <SpoolIllustration process turns={progress} active={active && !reduced} />
