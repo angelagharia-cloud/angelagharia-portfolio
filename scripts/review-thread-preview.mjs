@@ -80,10 +80,13 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
         const spool = document.querySelector(".process-spool")
         const mark = document.querySelector(".process-exit").getBoundingClientRect()
         const box = spool.getBoundingClientRect()
-        const mask = document.querySelector("#catch-line-creative-key path")
+        const fibre = document.querySelector(".project-thread")
+        const mask = document.querySelector("#single-cotton-reveal path")
         return { visible: !spool.hidden && getComputedStyle(spool).visibility === "visible",
           offset: Math.hypot(box.left + box.width / 2 - mark.left, box.top + box.height / 2 - mark.top),
-          paid: parseFloat(mask.getAttribute("stroke-dasharray")) }
+          paid: parseFloat(mask?.getAttribute("stroke-dasharray") ?? 0),
+          fall: Number(fibre?.dataset.gravityDrop ?? 0),
+          progress: Number(fibre?.dataset.gravityProgress ?? 0) }
       })
       assert(result.visible && result.offset < (label === "held" ? 6 : 3), JSON.stringify(result))
       await page.screenshot({path:output + "/" + name + "-handoff-" + label + ".png"})
@@ -137,10 +140,13 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
     const settled = await pose("settled")
     const sag = await page.locator(".process-path > g").evaluate(g => g.getCTM().b)
     assert(sag < -.01, "Rendered squiggle must sag after release")
-    assert(settled > falling && falling > held, JSON.stringify({held, falling, settled}))
+    assert(settled.progress > .98 && settled.fall > falling.fall + 100 &&
+      falling.fall >= held.fall, JSON.stringify({held, falling, settled}))
     await scroll(150)
-    await page.waitForTimeout(100)
-    assert(await pose("continuation") > settled)
+    await page.waitForTimeout(120)
+    const continued = await pose("continuation")
+    assert(continued.paid >= settled.paid,
+      `${name}: fibre reveal must advance through project cards: ${JSON.stringify({settled,continued})}`)
     await scroll(-1)
     await page.waitForTimeout(450)
     await pose("reverse")
