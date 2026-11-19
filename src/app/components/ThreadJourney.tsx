@@ -1,17 +1,55 @@
 import { useEffect, useRef, useState } from "react"
-import { motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react"
+import { animate, type MotionValue, motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react"
 import "./thread-journey.css"
 
-import spoolRender from "../../assets/cotton-spool.webp"
+import spoolPoster from "../../assets/cotton-poster.webp"
+import spoolFrames from "../../assets/cotton-turntable.webp"
 
-function SpoolIllustration() {
-  return <img src={spoolRender} alt="" draggable={false} className="cotton-render" />
+const frameCount = 48
+const columns = 8
+
+function SpoolIllustration({ turns, active }: { turns: MotionValue<number>; active: boolean }) {
+  const element = useRef<HTMLSpanElement>(null)
+  useEffect(() => {
+    const target = element.current
+    if (!active || !target) return
+    const image = new Image()
+    let cancelled = false
+    let unsubscribe: (() => void) | undefined
+    function draw(turn: number) {
+      const index = Math.floor(((turn % 1 + 1) % 1) * frameCount)
+      const col = index % columns
+      const row = Math.floor(index / columns)
+      target!.style.backgroundPosition = `${col * 100 / (columns - 1)}% ${row * 100 / (frameCount / columns - 1)}%`
+    }
+    image.src = spoolFrames
+    image.decode().then(() => {
+      if (cancelled) return
+      target.style.backgroundImage = `url("${spoolFrames}")`
+      target.style.backgroundSize = "800% 600%"
+      draw(turns.get())
+      unsubscribe = turns.on("change", draw)
+    }).catch(() => { /* The matching first-frame poster stays visible. */ })
+    return () => {
+      cancelled = true
+      unsubscribe?.()
+      target.style.backgroundImage = ""
+      target.style.backgroundSize = ""
+      target.style.backgroundPosition = ""
+    }
+  }, [turns, active])
+  return <span ref={element} className="spool-frames"><img src={spoolPoster} className="spool-poster" alt="" draggable={false} /></span>
 }
-
 export function HeroSpool({ active }: { active: boolean }) {
   const anchor = useRef<HTMLSpanElement>(null)
   const [route, setRoute] = useState("")
+  const turns = useMotionValue(0)
   const reduced = useReducedMotion()
+  useEffect(() => {
+    if (!active || reduced) return
+    const controls = animate(turns, 1, { duration: 1.65, ease: "linear" })
+    return () => controls.stop()
+  }, [active, reduced, turns])
   useEffect(() => {
     const origin = anchor.current
     const portrait = document.querySelector("#portrait-stage img")
@@ -39,7 +77,7 @@ export function HeroSpool({ active }: { active: boolean }) {
     <motion.span className="flight-spool" style={{offsetPath: route ? `path("${route}")` : undefined, offsetRotate:"0deg"}} initial={false}
       animate={{offsetDistance:active && !reduced ? "100%" : "0%", opacity:active ? [1,1,0] : 1}}
       transition={{offsetDistance:{duration:1.65,ease:"linear"},opacity:{duration:reduced ? 0 : 1.65,times:[0,.98,1]}}}>
-      <motion.span className="spool-roll" animate={{rotate:active && !reduced ? 320 : 0}} transition={{duration:1.65,ease:"linear"}}><SpoolIllustration /></motion.span>
+      <SpoolIllustration turns={turns} active={!reduced && Boolean(route)} />
     </motion.span>
   </span>
 }
@@ -97,7 +135,7 @@ export function ThreadProcess({ active }: { active: boolean }) {
   const section = useRef<HTMLElement>(null)
   const path = useRef<SVGPathElement>(null)
   const reduced = useReducedMotion()
-  const [point, setPoint] = useState({ x: 32, y: 195, angle: 0 })
+  const [point, setPoint] = useState({ x: 32, y: 195 })
   const progress = useMotionValue(0)
   const { scrollYProgress } = useScroll({ target: section, offset: ["start 86%", "end 38%"] })
 
@@ -107,7 +145,7 @@ export function ThreadProcess({ active }: { active: boolean }) {
     if (!node) return
     const total = node.getTotalLength()
     const pos = node.getPointAtLength(total * Math.min(1, Math.max(0, reduced ? 1 : active ? value : 0)))
-    setPoint({ x: pos.x, y: pos.y, angle: (active ? value : 0) * 960 })
+    setPoint({ x: pos.x, y: pos.y })
   })
 
   useEffect(() => {
@@ -132,8 +170,8 @@ export function ThreadProcess({ active }: { active: boolean }) {
               strokeLinecap="round" style={{ pathLength: progress }} />
           </svg>
           <div className="process-spool" aria-hidden="true"
-            style={{ left: `${point.x / 1200 * 100}%`, top: `${point.y / 380 * 100}%`, transform: `translate(-50%, -50%) rotate(${point.angle}deg)` }}>
-            <SpoolIllustration />
+            style={{ left: `${point.x / 1200 * 100}%`, top: `${point.y / 380 * 100}%`, transform: "translate(-50%, -50%)" }}>
+            <SpoolIllustration turns={progress} active={active && !reduced} />
           </div>
           {words.map((word, i) => <div key={word.title} className="process-word" style={{ left: word.x }}>
             <span className="process-number">0{i + 1}</span>
@@ -146,4 +184,3 @@ export function ThreadProcess({ active }: { active: boolean }) {
     </section>
   )
 }
-
