@@ -17,12 +17,12 @@
   position: absolute;
   bottom: 0;
   left: var(--edge);
-  height: 94%;
+  height: 100%;
   pointer-events: none;
   transform-origin: center bottom;
-  transform: translateX(-50%) rotate(calc(var(--portrait-position) * 3deg)) scale(calc(1 - var(--portrait-position) * var(--portrait-position) * .22));
+  transform: translateX(-50%) rotate(calc(var(--portrait-position) * 2.5deg)) scale(calc(1 - var(--portrait-position) * var(--portrait-position) * .17));
 }
-.portrait-note { position: absolute; inset: 0; }
+.portrait-note { position: absolute; inset: 0; z-index: 2; }
 .portrait-note[data-direction="1"] { clip-path: inset(0 calc(100% - var(--edge)) 0 0); }
 .portrait-note[data-direction="-1"] { clip-path: inset(0 0 0 var(--edge)); }
 .portrait-copy {
@@ -32,6 +32,7 @@
   width: 47%;
   font: 400 clamp(1rem, 5.8cqw, 2rem)/1.17 "DM Serif Display", Georgia, serif;
   color: #282334;
+  text-shadow: 0 1px 15px rgba(255,255,255,.7);
 }
 .portrait-note[data-direction="1"] .portrait-copy { left: 13%; }
 .portrait-note[data-direction="-1"] .portrait-copy { right: 13%; }
