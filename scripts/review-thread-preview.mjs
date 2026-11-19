@@ -74,29 +74,47 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
     await page.screenshot({ path: `${output}/${name}-step-one-arrival.png`, fullPage: true });
     await page.screenshot({ path: `${output}/${name}-arrival-viewport.png` });
 
-    // The actual cotton geometry must CHANGE while the first chapter
-    // loosens. Merely revealing an immutable squiggle is not sufficient.
+    // A proper unspooling test must move through the *sticky process*
+    // scroll range, not merely wheel a few pixels from the hero. The reel
+    // auto-scroll can arrive at different positions on tall and short screens.
+    const samples = [];
+    await page.locator('.landing-entry[data-settled="true"]').waitFor({ timeout: 15000 });
     const snapshot = () => page.evaluate(() => {
-      const shape = document.querySelector("#process-cotton path")?.getAttribute("d") ?? "";
+      const node = document.querySelector("#process-cotton path");
       const spool = document.querySelector(".process-spool");
-      const x = parseFloat(spool?.style.left || "NaN");
-      const y = parseFloat(spool?.style.top || "NaN");
-      return { shape, x, y };
+      return {
+        shape: node?.getAttribute("d") ?? "",
+        untangle: Number(node?.dataset.untangleProgress ?? 0),
+        x: parseFloat(spool?.style.left || "NaN"),
+        y: parseFloat(spool?.style.top || "NaN"),
+      };
     });
-    const knotBefore = await snapshot();
-    await page.evaluate(() => window.scrollBy({ top: 28, behavior: "instant" }));
-    await page.waitForTimeout(150);
-    const knotFirst = await snapshot();
-    await page.screenshot({ path: `${output}/${name}-unwinding-start.png`, animations: "disabled" });
-    await page.evaluate(() => window.scrollBy({ top: 44, behavior: "instant" }));
-    await page.waitForTimeout(150);
-    const knotSecond = await snapshot();
-    await page.screenshot({ path: `${output}/${name}-unwinding-middle.png`, animations: "disabled" });
-    assert.notEqual(knotBefore.shape, knotFirst.shape,
-      `${name}: cotton knot must deform on scroll, not just reveal`);
-    assert.notEqual(knotFirst.shape, knotSecond.shape,
-      `${name}: knots must continue to loosen through Step 1`);
-    for (const point of [knotFirst, knotSecond]) {
+    for (let index = 1; index <= 47; index++) {
+      const fraction = index / 50;
+      await page.evaluate(p => {
+        const track = document.querySelector(".process-track");
+        const bounds = track.getBoundingClientRect();
+        const documentTop = bounds.top + scrollY;
+        const range = Math.max(1, bounds.height - innerHeight * .44);
+        window.scrollTo({ top: documentTop - innerHeight * .28 + range * p, behavior: "auto" });
+      }, fraction);
+      await page.waitForTimeout(65);
+      const state = await snapshot();
+      if (state.untangle > .06 && state.untangle < .94) {
+        if (!samples.some(sample => sample.shape === state.shape)) {
+          samples.push(state);
+          if (samples.length === 1) {
+            await page.screenshot({ path: `${output}/${name}-unwinding-start.png`, animations: "disabled" });
+          } else if (samples.length === 3) {
+            await page.screenshot({ path: `${output}/${name}-unwinding-middle.png`, animations: "disabled" });
+            break;
+          }
+        }
+      }
+    }
+    assert(samples.length >= 3,
+      `${name}: first chapter must show at least three distinct untangling shapes; saw ${samples.length}`);
+    for (const point of samples) {
       assert(Number.isFinite(point.x) && Number.isFinite(point.y),
         `${name}: spool lost its physical position while unwinding`);
     }
