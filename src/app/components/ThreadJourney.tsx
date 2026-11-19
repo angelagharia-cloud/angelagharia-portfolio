@@ -1,5 +1,6 @@
+import { CottonFilm } from "./CottonFilm"
 import { CottonStrip } from "./CottonStrip"
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { animate, type MotionValue, motion, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useTransform } from "motion/react"
 import { Link } from "../lib/router"
 import "./thread-journey.css"
@@ -55,6 +56,8 @@ type FlightRoute = { d: string; release: number; radius: number; contact: number
  */
 export function HeroSpool({ active }: { active: boolean }) {
   const anchor = useRef<HTMLSpanElement>(null)
+  const [filmFailed, setFilmFailed] = useState(false)
+  const fallback = useCallback(() => setFilmFailed(true), [])
   const [route, setRoute] = useState<FlightRoute | null>(null)
   const flight = useMotionValue(0)
   const laid = useMotionValue(0)
@@ -140,7 +143,7 @@ export function HeroSpool({ active }: { active: boolean }) {
   }, [])
 
   useEffect(() => {
-    if (!active || !route || reduced) return
+    if (!filmFailed || !active || !route || reduced) return
     anchor.current?.classList.remove("flight-landed")
     flight.set(0)
     const guide = document.createElementNS("http://www.w3.org/2000/svg", "path")
@@ -205,11 +208,12 @@ export function HeroSpool({ active }: { active: boolean }) {
       unsubscribe()
       inputs.forEach(event => window.removeEventListener(event, release))
     }
-  }, [active, route?.d, reduced, flight])
+  }, [filmFailed, active, route?.d, reduced, flight])
 
   return (
     <span ref={anchor} className="spool-origin" aria-hidden="true">
-      {route && active && !reduced && (
+      {active && !reduced && !filmFailed && <CottonFilm onFallback={fallback} />}
+      {filmFailed && route && active && !reduced && (
         <svg className="flight-thread" fill="none" strokeLinecap="round">
           <defs>
             <mask id="laid-cotton" maskUnits="userSpaceOnUse" x="-5000" y="-5000" width="10000" height="20000">
@@ -230,7 +234,7 @@ export function HeroSpool({ active }: { active: boolean }) {
           offsetRotate: "0deg",
         }}
         initial={false}
-        animate={active && !reduced
+        animate={filmFailed && active && !reduced
           ? { opacity: [1, 1, 1, 1], rotate: [0, 0, -12, -7], scale: [1, 1.02, .94, .84] }
           : { opacity: 1, rotate: 0, scale: 1 }}
         transition={{ duration: reduced ? 0 : 2.4, times: [0, .646, .733, 1], ease: "easeInOut" }}

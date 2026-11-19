@@ -240,3 +240,6 @@
     min-height: min(calc(100svh - 4rem), 58rem);
   }
 }
+.cotton-film { position: fixed; inset: 0; width: 100vw; height: 100dvh; pointer-events: none; z-index: 15; }
+.film-playing .flight-spool { opacity: 0 !important; }
+.thread-story:has(.cotton-film) .portrait-photo { animation: none !important; }
