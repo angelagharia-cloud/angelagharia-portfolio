@@ -452,6 +452,7 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
       <div className="shell">
         <div className="process-topline">
           <span className="t-eyebrow text-neutral-500">The thread of reason / How I design</span>
+          <span className="process-scroll-cue">Scroll to untangle <span aria-hidden="true">↓</span></span>
         </div>
         <div className="process-intro">
           <h2 id="process-heading" className="t-h2 text-neutral-950">Making sense of the <em>mess.</em></h2>
