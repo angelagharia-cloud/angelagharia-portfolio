@@ -112,8 +112,6 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
 
       // Three connected beats: roll off the type → soft shoulder contact
       // → a damped rebound → falling into the research-process canvas.
-      const stacked = window.matchMedia("(max-width: 1023px)").matches
-      const rail = document.documentElement.clientWidth - a.left - 13
       const word = origin!.parentElement!.getBoundingClientRect()
       const run = word.right - a.left - diameter * .05
       const pivot = a.left - word.left
@@ -130,9 +128,10 @@ export function HeroSpool({ active, onArrival }: { active: boolean; onArrival: (
         roll += ` L ${rx} ${ry}`
       }
       const lead = Math.max(12, Math.min(130, (x - rx) * .32))
-      const approach = roll + (stacked
-        ? ` C ${rx + lead} ${ry + lead * Math.tan(angle)} ${rail} ${ry + 45} ${rail} ${ry + 110} C ${rail} ${y * .68} ${rail} ${y - p.height * .34} ${x - 52} ${y - 62} Q ${x - 43} ${y - 32} ${x} ${y}`
-        : ` C ${rx + lead} ${ry + lead * Math.tan(angle)} ${x - lead} ${Math.max(ry, y - 36)} ${x} ${y}`)
+      // The SVG fallback follows the same direct physical approach as
+      // the filmed spool on phones and desktops: no edge-hugging detour.
+      const approach = roll +
+        ` C ${rx + lead} ${ry + lead * Math.tan(angle)} ${x - lead} ${Math.max(ry, y - 36)} ${x} ${y}`
       const bounce = ` C ${x - 9} ${y - 15} ${x - 29} ${y - 24} ${x - 35} ${y - 15}`
       const gutter = end.left * .38 - a.left
       const entry = end.top - a.top
