@@ -98,6 +98,8 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
     const falling = await pose("falling")
     await page.waitForTimeout(1000)
     const settled = await pose("settled")
+    const sag = await page.locator(".process-path > g").evaluate(g => g.getCTM().b)
+    assert(sag < -.01, "Rendered squiggle must sag after release")
     assert(settled > falling && falling > held, JSON.stringify({held, falling, settled}))
     await scroll(150)
     await page.waitForTimeout(100)

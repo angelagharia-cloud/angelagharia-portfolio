@@ -318,11 +318,12 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
   const entryCurve = `M${startX} 195`
   const curve = entryCurve + " " + chapters.join(" ")
   const slack = useMotionValue(0)
-  const hangingPose = useTransform(slack, t => {
+  const cottonGroup = useRef<SVGGElement>(null)
+  useEffect(() => slack.on("change", t => {
     // Keep the fibre and its reveal mask together; the spool is the pivot.
     const sway = Math.sin(t * Math.PI) * .025
-    return `translate(1170 198) matrix(${1 - .08*t}  ${-.067*t - sway} 0 1 0 0) translate(-1170 -198)`
-  })
+    cottonGroup.current?.setAttribute("transform", `matrix(${1 - .08*t} ${-.067*t - sway} 0 1 ${1170*.08*t} ${1170*(.067*t+sway)})`)
+  }), [slack])
   const positionX = useMotionValue(`${startX / 12}%`)
   const positionY = useMotionValue("51.316%")
   const progress = useMotionValue(0)
@@ -400,10 +401,10 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
             <p>{words[stage].question}</p>
           </div>
           <svg viewBox="0 0 1200 380" preserveAspectRatio="none" className="process-path">
-            <motion.g transform={hangingPose}><mask id="process-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="380">
+            <g ref={cottonGroup}><mask id="process-cotton" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="380">
               <motion.path ref={path} d={curve} fill="none" stroke="white" strokeWidth="18" style={{ pathLength: progress }} />
             </mask>
-            <g mask="url(#process-cotton)"><CottonStrip curve={curve} width={3.45} step={8} screenWidth /></g></motion.g></svg>
+            <g mask="url(#process-cotton)"><CottonStrip curve={curve} width={3.45} step={8} screenWidth /></g></g></svg>
           {/* Exact end of Clarity & focus. The falling portfolio cotton begins at this same physical point. */}
           <span className="process-exit" aria-hidden="true" />
           <div aria-hidden="true" className="landing-entry" data-settled={active} style={{ left: String(startX / 12) + "%" }}>
