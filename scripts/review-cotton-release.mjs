@@ -154,6 +154,35 @@ async function review(label, viewport, reducedMotion="no-preference") {
   await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),releaseScroll+170);
   await page.waitForTimeout(160);
   await page.screenshot({path:output+"/"+label+"-follow-work.png"});
+
+  // All six cards—not only the featured pair and Stammer Halo—must be
+  // physically caught by the cotton and then spring back to their original
+  // silhouette. Drive normal scrolling through each stitched corner.
+  const names=["creative-key","gravitad","stammer-halo",
+    "smartmeal","interruption-study","ucd-campus"];
+  const count=await page.locator(".project-thread").getAttribute("data-catch-count");
+  assert.equal(count,String(names.length),label+": every project needs a thread catch");
+  const grabs=[];
+  for(const name of names) {
+    const card=page.locator('#work article[data-cotton-corner="'+name+'"]');
+    assert.equal(await card.count(),1,label+": missing project corner "+name);
+    const anchorY=await card.evaluate(el=>el.getBoundingClientRect().top+scrollY);
+    const startY=anchorY-viewport.height*.68;
+    let maxLoad=0, strongestY=startY;
+    for(let delta=-110;delta<=350;delta+=23) {
+      const target=Math.max(0,startY+delta);
+      await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),target);
+      await page.waitForTimeout(27);
+      const load=await card.evaluate(el=>parseFloat(el.style.getPropertyValue("--cotton-load")||"0"));
+      if(load>maxLoad){maxLoad=load;strongestY=target}
+    }
+    await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),strongestY);
+    await page.waitForTimeout(80);
+    await page.screenshot({path:output+"/"+label+"-grab-"+name+".png"});
+    grabs.push({name,maxLoad});
+    assert(maxLoad>.25,label+": cotton never grips "+name+" "+JSON.stringify(grabs));
+  }
+  console.log(label+" cotton-card-grabs",JSON.stringify(grabs));
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
   assert(overflow<3,label+": horizontal overflow");
   assert.equal(errors.length,0,errors.join("; "));
