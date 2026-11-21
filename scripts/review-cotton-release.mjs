@@ -59,6 +59,14 @@ async function review(label, viewport, reducedMotion="no-preference") {
   const initialStep=await page.locator(".process-step-meter").getAttribute("aria-label");
   assert.equal(initialStep,"Design process, step 1 of 4",
     label+": stage meter should start at chapter one");
+  // Let the restrained reveal finish so visual proof shows the legible
+  // settled state, not a deliberately blurred entry frame.
+  await page.waitForTimeout(700);
+  const cueBox=await cue.boundingBox();
+  const questionBox=await page.locator(".process-question").boundingBox();
+  assert(cueBox && questionBox &&
+    (cueBox.y>=questionBox.y+questionBox.height-4 || cueBox.x>questionBox.x+questionBox.width+6),
+    label+": instruction must not cover the active process question");
   await page.screenshot({path:output+"/"+label+"-scroll-instruction.png"});
 
   // One meaningful scroll should move the cotton, advance the journey
