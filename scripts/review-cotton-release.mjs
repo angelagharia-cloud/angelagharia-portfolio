@@ -67,8 +67,15 @@ async function review(label, viewport, reducedMotion="no-preference") {
   await page.evaluate(()=>window.scrollBy({top:Math.max(180,innerHeight*.24),behavior:"instant"}));
   await page.waitForTimeout(350);
   await cue.waitFor({state:"hidden",timeout:2500});
-  const nextStep=await page.locator(".process-step-meter").getAttribute("aria-label");
-  assert.notEqual(nextStep,initialStep,label+": meter must respond to scroll");
+  let nextStep=await page.locator(".process-step-meter").getAttribute("aria-label");
+  // The initial tangle is deliberately long. One gesture should dismiss
+  // the hint, but a full stage can take several normal scroll gestures.
+  for (let attempt=0; attempt<5 && nextStep===initialStep; attempt++) {
+    await page.evaluate(()=>window.scrollBy({top:150,behavior:"instant"}));
+    await page.waitForTimeout(100);
+    nextStep=await page.locator(".process-step-meter").getAttribute("aria-label");
+  }
+  assert.notEqual(nextStep,initialStep,label+": progress must advance with continued scrolling");
   await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),beforeScroll);
   await page.waitForTimeout(150);
   assert.equal(await cue.count(),0,label+": instruction should not return when scrolling up");
