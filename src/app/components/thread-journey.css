@@ -471,7 +471,7 @@
   .thread-process .process-topline { padding-left: clamp(0rem, 3vw, 1.5rem); }
 }
 @media (max-width: 640px) {
-  .thread-story .hero-composition { padding-top: clamp(1.25rem, 5vw, 2rem); }
+  .thread-story .hero-composition { padding-top: clamp(3rem, 10vw, 4rem); }
   .thread-story .hero-copy > h1 { margin-top: 1.2rem; }
   .thread-story .hero-copy > .t-lead { margin-top: 1rem; line-height: 1.6; }
   .thread-story .hero-copy > dl { margin-block: 1.1rem 1.65rem; }
