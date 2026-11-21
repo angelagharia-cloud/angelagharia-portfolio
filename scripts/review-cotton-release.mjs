@@ -42,11 +42,37 @@ async function review(label, viewport, reducedMotion="no-preference") {
   await page.locator(".thread-follow-cta").click();
   await page.waitForTimeout(reducedMotion==="reduce"?250:3800);
   if (reducedMotion==="reduce") {
+    assert.equal(await page.locator(".process-scroll-cue").count(),0,
+      "Reduced-motion visitors should not see an animated scroll instruction");
     assert(await page.locator("#design-process").count());
     await page.screenshot({path:output+"/"+label+"-reduced.png"});
     assert.equal(errors.length,0,errors.join("; "));
     await ctx.close();return;
   }
+  // At the precise end of the cinematic landing, the next step must be
+  // discoverable without guessing or scrolling.
+  const cue=page.locator(".process-scroll-cue");
+  await cue.waitFor({state:"visible",timeout:5000});
+  const instruction=await cue.innerText();
+  assert(instruction.includes(viewport.width<=640?"Swipe up to unravel":"Scroll to unravel"),
+    label+": contextual cue should match device "+instruction);
+  const initialStep=await page.locator(".process-step-meter").getAttribute("aria-label");
+  assert.equal(initialStep,"Design process, step 1 of 4",
+    label+": stage meter should start at chapter one");
+  await page.screenshot({path:output+"/"+label+"-scroll-instruction.png"});
+
+  // One meaningful scroll should move the cotton, advance the journey
+  // counter, and retire the cue, including when visitors scroll backwards.
+  const beforeScroll=await page.evaluate(()=>scrollY);
+  await page.evaluate(()=>window.scrollBy({top:Math.max(180,innerHeight*.24),behavior:"instant"}));
+  await page.waitForTimeout(350);
+  await cue.waitFor({state:"hidden",timeout:2500});
+  const nextStep=await page.locator(".process-step-meter").getAttribute("aria-label");
+  assert.notEqual(nextStep,initialStep,label+": meter must respond to scroll");
+  await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),beforeScroll);
+  await page.waitForTimeout(150);
+  assert.equal(await cue.count(),0,label+": instruction should not return when scrolling up");
+
   const releaseScroll = await page.locator(".process-track").evaluate(node =>
     window.scrollY+node.getBoundingClientRect().bottom-window.innerHeight*.72);
   await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),releaseScroll-8);
