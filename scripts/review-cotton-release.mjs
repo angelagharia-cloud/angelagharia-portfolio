@@ -40,18 +40,20 @@ async function review(label, viewport, reducedMotion="no-preference") {
   assert(hero.width<3,label+": hero layout causes horizontal overflow");
   await page.screenshot({path:output+"/"+label+"-hero-actions.png"});
   await page.evaluate(()=>{
-    const canvas=document.querySelector(".process-canvas");
-    const spool=canvas.querySelector(".process-spool");
     const timing={cueAt:null,landedAt:null};
     const record=()=>{
+      // The click deliberately remounts ThreadProcess with key={take}.
+      // Observe the page and resolve the NEW canvas after that remount.
+      const canvas=document.querySelector(".process-canvas");
+      const spool=canvas?.querySelector(".process-spool");
       const now=performance.now();
-      if(timing.cueAt===null && canvas.querySelector(".process-scroll-cue"))
+      if(timing.cueAt===null && canvas?.querySelector(".process-scroll-cue"))
         timing.cueAt=now;
-      if(timing.landedAt===null && !spool.hasAttribute("hidden"))
+      if(timing.landedAt===null && spool && !spool.hasAttribute("hidden"))
         timing.landedAt=now;
     };
     const observer=new MutationObserver(record);
-    observer.observe(canvas,{subtree:true,childList:true,attributes:true,attributeFilter:["hidden"]});
+    observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:["hidden"]});
     window.__scrollCueTiming={timing,observer};
   });
   await page.locator(".thread-follow-cta").click();
