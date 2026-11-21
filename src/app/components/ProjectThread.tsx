@@ -9,7 +9,7 @@ import {
 } from "motion/react"
 import { CottonStrip } from "./CottonStrip"
 
-const projects = ["creative-key", "gravitad", "stammer-halo"]
+const projects = ["creative-key", "gravitad", "stammer-halo", "smartmeal", "interruption-study", "ucd-campus"]
 type ContinuousSpoolThread = {
   curve: string
   length: number
@@ -43,10 +43,12 @@ type Catch = {
 
 function CornerCatch({ shot, cursor }: { shot: Catch; cursor: MotionValue<number> }) {
   const { id, x, y, arrival } = shot
-  const frame = useTransform(cursor, [arrival, shot.finish], [0, 47])
-  const wrap = useTransform(frame, [4, 43], [0, 1])
-  const opacity = useTransform(frame, [0, 4], [0, 1])
-  const tension = useTransform(frame, [0, 20, 43, 47], [0, .08, 1, .92])
+  const frame = useTransform(cursor, [arrival, shot.finish], [0, 64])
+  const wrap = useTransform(frame, [4, 48], [0, 1])
+  const opacity = useTransform(frame, [0, 5], [0, 1])
+  // Each corner gathers under the fibre, then releases its tension rather
+  // than remaining permanently pinched after the scroll has passed.
+  const tension = useTransform(frame, [0, 15, 36, 52, 64], [0, .08, .68, 1, 0])
   // Cotton enters the face, passes behind it, then comes back through a second hole.
   const stitch = useTransform(tension, t =>
     `M ${x-19} ${y+19} Q ${x+16-18*t} ${y+10+10*t} ${x+3-10*t} ${y+21}
@@ -58,6 +60,8 @@ function CornerCatch({ shot, cursor }: { shot: Catch; cursor: MotionValue<number
       if (load <= .001) {
         card.style.removeProperty("clip-path")
         card.style.removeProperty("--cotton-load")
+        card.style.removeProperty("--cotton-tug")
+        card.removeAttribute("data-thread-grab")
         return
       }
       // Only the upper-right seam gives under tension. A pair of cubic
@@ -69,6 +73,8 @@ function CornerCatch({ shot, cursor }: { shot: Catch; cursor: MotionValue<number
         " H " + (w+100) + " V " + (h+100) + " H -100 Z"
       card.style.clipPath = 'path("' + edge + '")'
       card.style.setProperty("--cotton-load", String(load))
+      card.style.setProperty("--cotton-tug", load.toFixed(3))
+      card.setAttribute("data-thread-grab", load > .12 ? "pulling" : "resting")
     }
     squeeze(tension.get())
     const unsubscribe = tension.on("change", squeeze)
@@ -217,10 +223,10 @@ export function ProjectThread({ active }: { active: boolean }) {
         released = falling
         release.stop()
         if (falling) {
-          // A previous scroll past the threshold can leave the motion value
-          // at 1 even if the view was reset. Start every new drop from slack.
+          // Start from the exact source, then settle without a long rubbery
+          // hold. The visible cotton and its masks share this motion value.
           release.set(0)
-          animate(release, 1, { duration: 1.65, ease: [0.35, 0.05, 0.25, 1] })
+          animate(release, 1, { duration: 1.22, ease: [0.27, 0.04, 0.28, 1] })
         } else release.set(0)
       }
       if (!falling) {
@@ -264,7 +270,7 @@ export function ProjectThread({ active }: { active: boolean }) {
       const rail = Math.min(layerRect.width - 6, canvasRect.right - layerRect.left + 12)
       const catches: Catch[] = []
       const commands: CottonPart[] = []
-      let previousX = 0, previousY = 0
+      let previousX = 0, previousY = 0, previousTop = NaN
       cards.forEach((card, i) => {
         if (!card) return
         const r = card.getBoundingClientRect()
@@ -273,36 +279,47 @@ export function ProjectThread({ active }: { active: boolean }) {
         const inletX = x - 22
         const inletY = y + 13
         if (i === 0) firstTip = { x: inletX, y: inletY }
-        const start = catches[catches.length - 1]?.finish ?? from
-        const arrival = Math.max(start + 90, inletY)
+        const previous = catches[catches.length - 1]
+        const sameRow = Boolean(previous && Math.abs(r.top - previousTop) < 40)
+        const start = previous?.finish ?? from
+        // Pair the small cards by row. Stagger their catches enough for the
+        // fabric to visibly pull before the next card receives the strand.
+        const arrival = Math.max(start + (sameRow ? 55 : 92),
+          inletY - (sameRow ? 60 : 0))
+        const finish = arrival + 112
         const stitch = "C " + (inletX + 12) + " " + (inletY + 10) + ", " +
           (x - 22) + " " + (y + 28) + ", " + (x + 4) + " " + (y + 35)
-        if (i !== 0) {
+        if (previous) {
           const reach = inletY - previousY
-          const sharedRow = i === 2 && r.width < canvasRect.width * .75
-          const gutterY = y - 22
-          const lead = sharedRow
-            ? "Q " + rail + " " + (previousY + 10) + " " + rail + " " + (previousY + 30) +
-              " L " + rail + " " + (gutterY - 15) +
-              " Q " + rail + " " + gutterY + " " + (rail - 24) + " " + gutterY +
-              " C " + (rail - 80) + " " + gutterY + " " + (inletX + 32) + " " + (gutterY - 4) +
-              " " + inletX + " " + inletY
-            : "C " + (previousX + (rail - previousX) * .8) + " " + (previousY + 5) +
-              ", " + rail + " " + (previousY + reach * .12) + ", " + rail + " " +
-              (previousY + reach * .35) + " S " + (rail + 3) + " " + (inletY - 44) +
-              ", " + inletX + " " + inletY
+          const smallerCard = r.width < canvasRect.width * .75
+          const gutterY = y - 23
+          const lead = sameRow
+            ? "C " + (previousX + 50) + " " + (previousY - 40) + ", " +
+              (inletX - 55) + " " + (inletY - 40) + ", " +
+              inletX + " " + inletY
+            : smallerCard
+              ? "Q " + rail + " " + (previousY + 10) + " " + rail + " " + (previousY + 30) +
+                " L " + rail + " " + (gutterY - 15) +
+                " Q " + rail + " " + gutterY + " " + (rail - 24) + " " + gutterY +
+                " C " + (rail - 80) + " " + gutterY + " " + (inletX + 32) + " " + (gutterY - 4) +
+                " " + inletX + " " + inletY
+              : "C " + (previousX + (rail - previousX) * .8) + " " + (previousY + 5) +
+                ", " + rail + " " + (previousY + reach * .12) + ", " + rail + " " +
+                (previousY + reach * .35) + " S " + (rail + 3) + " " + (inletY - 44) +
+                ", " + inletX + " " + inletY
           commands.push({ command: lead, start, finish: arrival })
         }
-        commands.push({ command: stitch, start: arrival - 15, finish: arrival + 48 })
+        commands.push({ command: stitch, start: arrival - 18, finish })
         catches.push({
           id: projects[i], card, x, y, inletX, inletY,
           path: "M " + (i ? previousX : firstTip.x) + " " +
             (i ? previousY : firstTip.y) + " " + stitch,
-          start, arrival, finish: arrival + 48, anchorX: pivot.x,
+          start, arrival, finish, anchorX: pivot.x,
           swingRoom: Math.min(32, Math.max(0, layerRect.width - rail - 3)),
         })
         previousX = x + 4
         previousY = y + 35
+        previousTop = r.top
       })
       if (!catches.length) return
       parts = commands
@@ -325,7 +342,10 @@ export function ProjectThread({ active }: { active: boolean }) {
     cards.forEach(c => c && observer.observe(c))
     const originalGroup = canvas.querySelector(".process-path > g")
     const gravity = new MutationObserver(() => {
-      if (!released || performance.now() - lastSample < 40) return
+      // Sampling the animated process transform mid-fall would move the
+      // source coordinates underneath the strand and create a false wobble.
+      // A resize is still measured independently by ResizeObserver.
+      if (released || performance.now() - lastSample < 40) return
       lastSample = performance.now()
       measure()
     })
@@ -347,6 +367,7 @@ export function ProjectThread({ active }: { active: boolean }) {
   return (
     <svg ref={svg} aria-hidden="true" className="project-thread"
       data-continuation="original-noise-cotton-falls"
+      data-catch-count={shots.length}
       data-handoff={handoff && ready}>
       {active && ready && (
         <>
