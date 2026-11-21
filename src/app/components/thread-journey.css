@@ -374,7 +374,13 @@
 }
 .landing-entry[data-settled="true"] .ground-shadow { filter: none; }
 .settled-tail { position:absolute; width:var(--body); height:auto; transform:translate(-50%,-50%); overflow:visible; }
-#work article[data-cotton-corner] { --cotton-load:0; translate:none; }
+#work article[data-cotton-corner] {
+  --cotton-load: 0;
+  --cotton-tug: 0;
+  /* The sewing corner reacts to the load before settling back in place.
+     Independent translate keeps existing hover transforms intact. */
+  translate: calc(var(--cotton-tug) * 2px) calc(var(--cotton-tug) * -3px);
+}
 #work article[data-cotton-corner]::before {
   content:""; position:absolute; top:0; right:0; z-index:3; pointer-events:none;
   width:50px; height:48px; opacity:var(--cotton-load);
@@ -668,4 +674,9 @@
 @media (prefers-reduced-motion: reduce) {
   .process-step-meter__bars > span { transition: none; }
   .process-scroll-cue, .process-scroll-cue * { animation: none !important; transition: none !important; }
+}
+
+/* Do not physically tug cards for visitors who request less movement. */
+@media (prefers-reduced-motion: reduce) {
+  #work article[data-cotton-corner] { translate: none !important; }
 }

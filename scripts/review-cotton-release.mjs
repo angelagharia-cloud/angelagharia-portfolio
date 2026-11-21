@@ -39,6 +39,23 @@ async function review(label, viewport, reducedMotion="no-preference") {
     label+": the spool should not have an invisible click target");
   assert(hero.width<3,label+": hero layout causes horizontal overflow");
   await page.screenshot({path:output+"/"+label+"-hero-actions.png"});
+  await page.evaluate(()=>{
+    const timing={cueAt:null,landedAt:null};
+    const record=()=>{
+      // The click deliberately remounts ThreadProcess with key={take}.
+      // Observe the page and resolve the NEW canvas after that remount.
+      const canvas=document.querySelector(".process-canvas");
+      const spool=canvas?.querySelector(".process-spool");
+      const now=performance.now();
+      if(timing.cueAt===null && canvas?.querySelector(".process-scroll-cue"))
+        timing.cueAt=now;
+      if(timing.landedAt===null && spool && !spool.hasAttribute("hidden"))
+        timing.landedAt=now;
+    };
+    const observer=new MutationObserver(record);
+    observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:["hidden"]});
+    window.__scrollCueTiming={timing,observer};
+  });
   await page.locator(".thread-follow-cta").click();
   await page.waitForTimeout(reducedMotion==="reduce"?250:3800);
   if (reducedMotion==="reduce") {
@@ -56,6 +73,17 @@ async function review(label, viewport, reducedMotion="no-preference") {
   const instruction=await cue.innerText();
   assert(instruction.includes(viewport.width<=640?"Swipe up to unravel":"Scroll to unravel"),
     label+": contextual cue should match device "+instruction);
+  const cueTiming=await page.evaluate(()=>{
+    const t=window.__scrollCueTiming;
+    t?.observer.disconnect();
+    return t?.timing;
+  });
+  assert(cueTiming && cueTiming.cueAt!==null && cueTiming.landedAt!==null,
+    label+": no recorded cue/landing timing "+JSON.stringify(cueTiming));
+  const instructionLag=cueTiming.cueAt-cueTiming.landedAt;
+  console.log(label+" scroll cue vs landing (ms)",instructionLag.toFixed(0));
+  assert(instructionLag<550,
+    label+": scroll instruction must appear with landing, not seconds later "+instructionLag);
   const initialStep=await page.locator(".process-step-meter").getAttribute("aria-label");
   assert.equal(initialStep,"Design process, step 1 of 4",
     label+": stage meter should start at chapter one");
@@ -154,6 +182,35 @@ async function review(label, viewport, reducedMotion="no-preference") {
   await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),releaseScroll+170);
   await page.waitForTimeout(160);
   await page.screenshot({path:output+"/"+label+"-follow-work.png"});
+
+  // All six cards—not only the featured pair and Stammer Halo—must be
+  // physically caught by the cotton and then spring back to their original
+  // silhouette. Drive normal scrolling through each stitched corner.
+  const names=["creative-key","gravitad","stammer-halo",
+    "smartmeal","interruption-study","ucd-campus"];
+  const count=await page.locator(".project-thread").getAttribute("data-catch-count");
+  assert.equal(count,String(names.length),label+": every project needs a thread catch");
+  const grabs=[];
+  for(const name of names) {
+    const card=page.locator('#work article[data-cotton-corner="'+name+'"]');
+    assert.equal(await card.count(),1,label+": missing project corner "+name);
+    const anchorY=await card.evaluate(el=>el.getBoundingClientRect().top+scrollY);
+    const startY=anchorY-viewport.height*.68;
+    let maxLoad=0, strongestY=startY;
+    for(let delta=-110;delta<=350;delta+=23) {
+      const target=Math.max(0,startY+delta);
+      await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),target);
+      await page.waitForTimeout(27);
+      const load=await card.evaluate(el=>parseFloat(el.style.getPropertyValue("--cotton-load")||"0"));
+      if(load>maxLoad){maxLoad=load;strongestY=target}
+    }
+    await page.evaluate(y=>window.scrollTo({top:y,behavior:"instant"}),strongestY);
+    await page.waitForTimeout(80);
+    await page.screenshot({path:output+"/"+label+"-grab-"+name+".png"});
+    grabs.push({name,maxLoad});
+    assert(maxLoad>.25,label+": cotton never grips "+name+" "+JSON.stringify(grabs));
+  }
+  console.log(label+" cotton-card-grabs",JSON.stringify(grabs));
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
   assert(overflow<3,label+": horizontal overflow");
   assert.equal(errors.length,0,errors.join("; "));

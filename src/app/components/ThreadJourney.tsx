@@ -5,7 +5,7 @@ import { CottonFilm } from "./CottonFilm"
 import { CottonStrip } from "./CottonStrip"
 import { restingCotton } from "./cottonSpan"
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react"
-import { AnimatePresence, animate, type MotionValue, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react"
+import { AnimatePresence, animate, type MotionValue, motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react"
 import { Link } from "../lib/router"
 import "./thread-journey.css"
 
@@ -328,6 +328,10 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
   const positionX = useMotionValue(`${startX / 12}%`)
   const positionY = useMotionValue("51.316%")
   const progress = useMotionValue(0)
+  const scrollTarget = useMotionValue(0)
+  // Light physical easing, shared by the bobbin, yarn mask and active chapter.
+  // Keep the visual lag short so the illustration responds to every gesture.
+  const smoothScroll = useSpring(scrollTarget, { stiffness: 410, damping: 43, mass: .4 })
   const groundShadow = useTransform(progress, [0, .026], [1, 0])
   const tailScale = useTransform(progress, [0, .032], [1, 0])
   const rollFrame = useMotionValue("100% 100%")
@@ -372,25 +376,33 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
       rollFrame.set(String((frame % 8) * 100 / 7) + "% " + String(Math.floor(frame / 8) * 20) + "%")
     }
     let released = false
+    const unsubscribe = smoothScroll.on("change", draw)
     const update = () => {
-      draw(travelAtScroll())
+      scrollTarget.set(travelAtScroll())
       const loose = active && !reduced && track.current!.getBoundingClientRect().bottom < innerHeight * .72
       if (released !== loose) {
         released = loose
         animate(slack, loose ? 1 : 0, {duration: loose ? 1.15 : .36, ease:"easeInOut"})
       }
     }
+    // Render immediately at the settled value; further movement is smoothly
+    // interpolated by the spring without detaching spool from its fibre.
     update()
+    draw(smoothScroll.get())
     window.addEventListener("scroll", update, { passive:true })
     window.addEventListener("resize", update)
-    return () => { window.removeEventListener("scroll", update); window.removeEventListener("resize", update) }
-  }, [active, fromHero, entryCurve, reduced, positionX, positionY, progress, rollFrame])
+    return () => {
+      unsubscribe()
+      window.removeEventListener("scroll", update)
+      window.removeEventListener("resize", update)
+    }
+  }, [active, fromHero, entryCurve, reduced, positionX, positionY, progress, rollFrame, scrollTarget, smoothScroll])
 
-  // A one-time affordance, not a looping interruption. Wait until the spool
-  // actually arrives and the process is visible; let the first meaningful
+  // Don't wait for the whole cinematic fall to finish. Reveal the instruction
+  // as soon as the process stage enters the viewport; let the first meaningful
   // scroll movement dismiss the cue permanently for this journey.
   useEffect(() => {
-    if (!active || reduced) {
+    if (!(fromHero || active) || reduced) {
       setShowScrollCue(false)
       return
     }
@@ -418,7 +430,7 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
       window.removeEventListener("scroll", updateCue)
       window.removeEventListener("resize", updateCue)
     }
-  }, [active, reduced, progress])
+  }, [active, fromHero, reduced, progress])
 
   return (
     <section id="design-process" aria-labelledby="process-heading" className="thread-process">
@@ -445,10 +457,10 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
                 role="status"
                 aria-label="Scroll down to unravel the design process thread"
                 className="process-scroll-cue"
-                initial={{ opacity: 0, y: 12, scale: .97, filter: "blur(5px)" }}
-                animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
-                exit={{ opacity: 0, y: -8, scale: .985, filter: "blur(2px)" }}
-                transition={{ duration: .52, ease: [.22, 1, .36, 1] }}
+                initial={{ opacity: 0, y: 7, scale: .99 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -5, scale: .995 }}
+                transition={{ duration: .27, ease: [.22, 1, .36, 1] }}
               >
                 <span className="process-scroll-cue__spool" aria-hidden="true">
                   <svg viewBox="0 0 36 53" fill="none">
@@ -458,7 +470,7 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
                       stroke="#9f896e" strokeWidth="2.3" strokeLinecap="round"
                       initial={{ pathLength: 0 }}
                       animate={{ pathLength: 1 }}
-                      transition={{ duration: 1.25, ease: [.25, .1, .2, 1], delay: .22 }}
+                      transition={{ duration: .75, ease: [.25, .1, .2, 1], delay: .05 }}
                     />
                     <path d="m12.5 43 4.5 5.5 4.5-5.5" stroke="#2855d8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -471,7 +483,7 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
                 </span>
                 <motion.span aria-hidden="true" className="process-scroll-cue__arrow"
                   animate={{ y: [0, 5, 0] }}
-                  transition={{ duration: 1.45, delay: .7, repeat: 1, ease: "easeInOut" }}>
+                  transition={{ duration: 1.05, delay: .36, repeat: 1, ease: "easeInOut" }}>
                   ↓
                 </motion.span>
               </motion.div>
