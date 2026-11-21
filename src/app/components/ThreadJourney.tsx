@@ -5,7 +5,7 @@ import { CottonFilm } from "./CottonFilm"
 import { CottonStrip } from "./CottonStrip"
 import { restingCotton } from "./cottonSpan"
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react"
-import { animate, type MotionValue, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react"
+import { AnimatePresence, animate, type MotionValue, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react"
 import { Link } from "../lib/router"
 import "./thread-journey.css"
 
@@ -310,6 +310,7 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
   const path = useRef<SVGPathElement>(null)
   const reduced = useReducedMotion()
   const [stage, setStage] = useState(0)
+  const [showScrollCue, setShowScrollCue] = useState(false)
   // Land inside chapter ONE (Noise & uncertainty), with enough space
   // for the complete bobbin even on a narrow phone. The earlier desktop
   // entrance at x=672 inadvertently dropped the spool onto chapter three.
@@ -385,11 +386,51 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
     return () => { window.removeEventListener("scroll", update); window.removeEventListener("resize", update) }
   }, [active, fromHero, entryCurve, reduced, positionX, positionY, progress, rollFrame])
 
+  // A one-time affordance, not a looping interruption. Wait until the spool
+  // actually arrives and the process is visible; let the first meaningful
+  // scroll movement dismiss the cue permanently for this journey.
+  useEffect(() => {
+    if (!active || reduced) {
+      setShowScrollCue(false)
+      return
+    }
+    const canvas = track.current?.querySelector<HTMLElement>(".process-canvas")
+    if (!canvas) return
+    let dismissed = false
+    const updateCue = () => {
+      if (dismissed) return
+      if (progress.get() > .025) {
+        dismissed = true
+        setShowScrollCue(false)
+        return
+      }
+      const rect = canvas.getBoundingClientRect()
+      const inView = rect.bottom > window.innerHeight * .22 &&
+        rect.top < window.innerHeight * .84
+      if (inView) setShowScrollCue(true)
+    }
+    const unsubscribe = progress.on("change", updateCue)
+    window.addEventListener("scroll", updateCue, { passive: true })
+    window.addEventListener("resize", updateCue)
+    updateCue()
+    return () => {
+      unsubscribe()
+      window.removeEventListener("scroll", updateCue)
+      window.removeEventListener("resize", updateCue)
+    }
+  }, [active, reduced, progress])
+
   return (
     <section id="design-process" aria-labelledby="process-heading" className="thread-process">
       <div className="shell">
         <div className="process-topline">
           <span className="t-eyebrow text-neutral-500">The thread of reason / How I design</span>
+          <div className="process-step-meter" aria-label={`Design process, step ${stage + 1} of 4`}>
+            <span className="process-step-meter__count">0{stage + 1} <span aria-hidden="true">/ 04</span></span>
+            <span className="process-step-meter__bars" aria-hidden="true">
+              {[0, 1, 2, 3].map(i => <span key={i} data-complete={i <= stage} />)}
+            </span>
+          </div>
         </div>
         <div className="process-intro">
           <h2 id="process-heading" className="t-h2 text-neutral-950">Making sense of the <em>mess.</em></h2>
@@ -397,6 +438,45 @@ export function ThreadProcess({ active, fromHero }: { active: boolean; fromHero:
         </div>
         <div className="process-track" ref={track}>
         <div className="process-canvas" aria-label="A single continuous cotton thread moving from tangled uncertainty to clarity">
+          <AnimatePresence initial={false}>
+            {showScrollCue && (
+              <motion.div
+                key="scroll-instruction"
+                role="status"
+                aria-label="Scroll down to unravel the design process thread"
+                className="process-scroll-cue"
+                initial={{ opacity: 0, y: 12, scale: .97, filter: "blur(5px)" }}
+                animate={{ opacity: 1, y: 0, scale: 1, filter: "blur(0px)" }}
+                exit={{ opacity: 0, y: -8, scale: .985, filter: "blur(2px)" }}
+                transition={{ duration: .52, ease: [.22, 1, .36, 1] }}
+              >
+                <span className="process-scroll-cue__spool" aria-hidden="true">
+                  <svg viewBox="0 0 36 53" fill="none">
+                    <circle cx="17" cy="8" r="5" fill="#ccb99e" stroke="#877052" strokeWidth="1.2" />
+                    <motion.path
+                      d="M17 14 C7 20 27 24 17 31 S10 43 17 48"
+                      stroke="#9f896e" strokeWidth="2.3" strokeLinecap="round"
+                      initial={{ pathLength: 0 }}
+                      animate={{ pathLength: 1 }}
+                      transition={{ duration: 1.25, ease: [.25, .1, .2, 1], delay: .22 }}
+                    />
+                    <path d="m12.5 43 4.5 5.5 4.5-5.5" stroke="#2855d8" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
+                <span className="process-scroll-cue__copy">
+                  <span className="process-scroll-cue__eyebrow">YOUR NEXT STEP</span>
+                  <strong className="process-scroll-cue__desktop">Scroll to unravel</strong>
+                  <strong className="process-scroll-cue__touch">Swipe up to unravel</strong>
+                  <small>Guide the spool through four stages</small>
+                </span>
+                <motion.span aria-hidden="true" className="process-scroll-cue__arrow"
+                  animate={{ y: [0, 5, 0] }}
+                  transition={{ duration: 1.45, delay: .7, repeat: 1, ease: "easeInOut" }}>
+                  ↓
+                </motion.span>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <div className="process-question" key={stage}>
             <p>{words[stage].question}</p>
           </div>
