@@ -168,14 +168,6 @@ function Hero({ take, arrived, threadStarted, onFollowThread, onArrival }: { tak
                 Aghari<span className="release-letter">a</span><i className="type-baseline" aria-hidden="true" />
               </MaskLine>
               <HeroSpool key={take} active={threadStarted} onArrival={onArrival} />
-              <button type="button" className="spool-trigger" onClick={onFollowThread}
-                aria-label={arrived && threadStarted ? "Replay the thread" : "Follow the thread — press the spool"}
-                data-replay={arrived && threadStarted} disabled={threadStarted && !arrived}>
-                <span className="spool-callout">
-                  <svg viewBox="0 0 42 22" fill="none" aria-hidden="true"><path d="M41 2C17 0 22 17 3 18m4-4-5 4 6 2" /></svg>
-                  {arrived && threadStarted ? "Replay" : "Press the spool"}
-                </span>
-              </button>
             </span>
           </h1>
 
@@ -194,6 +186,13 @@ function Hero({ take, arrived, threadStarted, onFollowThread, onArrival }: { tak
             <Link to="home" section="work" className="work-shortcut">
               Selected work <ArrowDown aria-hidden="true" size={14} />
             </Link>
+            <button type="button" className="thread-follow-cta"
+              onClick={onFollowThread}
+              disabled={threadStarted && !arrived}
+              aria-label={arrived && threadStarted ? "Replay the design process animation" : "Follow the thread through my design process"}>
+              {arrived && threadStarted ? "Replay the thread" : "Follow the thread"}
+              <ArrowRight aria-hidden="true" size={15} />
+            </button>
           </motion.div>
 
           <motion.dl
