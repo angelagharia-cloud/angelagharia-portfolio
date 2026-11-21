@@ -439,7 +439,7 @@ function ProjectCard({ id, delay }: { id: ProjectId; delay: number }) {
   return (
     <Reveal delay={delay} y={id === "stammer-halo" ? 0 : undefined} className="h-full">
       <article
-        data-cotton-corner={id === "stammer-halo" ? id : undefined} className={`group relative flex h-full flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-neutral-200/90 transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_28px_60px_-30px_rgba(15,23,42,0.3)] hover:ring-neutral-300 ${focusRing}`}
+        data-cotton-corner={id} className={`group relative flex h-full flex-col overflow-hidden rounded-3xl bg-white ring-1 ring-neutral-200/90 transition-[transform,box-shadow] duration-500 ease-out-quint hover:-translate-y-1 hover:shadow-[0_28px_60px_-30px_rgba(15,23,42,0.3)] hover:ring-neutral-300 ${focusRing}`}
       >
         <div className="relative aspect-[4/3] overflow-hidden" style={{ backgroundColor: project.tint }}>
           <ProjectCover id={id} />
