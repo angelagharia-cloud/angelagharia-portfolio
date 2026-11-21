@@ -39,6 +39,21 @@ async function review(label, viewport, reducedMotion="no-preference") {
     label+": the spool should not have an invisible click target");
   assert(hero.width<3,label+": hero layout causes horizontal overflow");
   await page.screenshot({path:output+"/"+label+"-hero-actions.png"});
+  await page.evaluate(()=>{
+    const canvas=document.querySelector(".process-canvas");
+    const spool=canvas.querySelector(".process-spool");
+    const timing={cueAt:null,landedAt:null};
+    const record=()=>{
+      const now=performance.now();
+      if(timing.cueAt===null && canvas.querySelector(".process-scroll-cue"))
+        timing.cueAt=now;
+      if(timing.landedAt===null && !spool.hasAttribute("hidden"))
+        timing.landedAt=now;
+    };
+    const observer=new MutationObserver(record);
+    observer.observe(canvas,{subtree:true,childList:true,attributes:true,attributeFilter:["hidden"]});
+    window.__scrollCueTiming={timing,observer};
+  });
   await page.locator(".thread-follow-cta").click();
   await page.waitForTimeout(reducedMotion==="reduce"?250:3800);
   if (reducedMotion==="reduce") {
@@ -56,6 +71,17 @@ async function review(label, viewport, reducedMotion="no-preference") {
   const instruction=await cue.innerText();
   assert(instruction.includes(viewport.width<=640?"Swipe up to unravel":"Scroll to unravel"),
     label+": contextual cue should match device "+instruction);
+  const cueTiming=await page.evaluate(()=>{
+    const t=window.__scrollCueTiming;
+    t?.observer.disconnect();
+    return t?.timing;
+  });
+  assert(cueTiming && cueTiming.cueAt!==null && cueTiming.landedAt!==null,
+    label+": no recorded cue/landing timing "+JSON.stringify(cueTiming));
+  const instructionLag=cueTiming.cueAt-cueTiming.landedAt;
+  console.log(label+" scroll cue vs landing (ms)",instructionLag.toFixed(0));
+  assert(instructionLag<550,
+    label+": scroll instruction must appear with landing, not seconds later "+instructionLag);
   const initialStep=await page.locator(".process-step-meter").getAttribute("aria-label");
   assert.equal(initialStep,"Design process, step 1 of 4",
     label+": stage meter should start at chapter one");
