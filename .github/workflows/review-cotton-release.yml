@@ -1,5 +1,7 @@
 name: Verify cotton fall into Selected Work
 on:
+  pull_request:
+    branches: [main]
   push:
     branches:
       - preview/thread-of-reason-final-review

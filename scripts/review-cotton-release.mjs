@@ -13,9 +13,33 @@ async function review(label, viewport, reducedMotion="no-preference") {
   const errors=[];
   page.on("pageerror", e=>errors.push(e.message));
   await page.goto("http://127.0.0.1:4173/#/", {waitUntil:"domcontentloaded"});
-  await page.locator(".spool-trigger").waitFor({state:"visible"});
+  await page.locator(".thread-follow-cta").waitFor({state:"visible"});
   await page.waitForTimeout(1200);
-  await page.locator(".spool-trigger").click();
+  // Visitors should encounter the designer's introduction BEFORE either CTA.
+  // The decorative photographed spool must not retain an invisible hit target.
+  const hero = await page.evaluate(()=>{
+    const rect = selector => document.querySelector(selector).getBoundingClientRect();
+    const intro=rect(".hero-copy > .t-lead");
+    const actions=rect(".hero-actions");
+    const first=rect(".hero-actions .work-shortcut");
+    const second=rect(".hero-actions .thread-follow-cta");
+    return {
+      introEnds: intro.bottom, actionsStart: actions.top,
+      selectedX: first.left, selectedY: first.top,
+      threadX: second.left, threadY: second.top,
+      width: document.documentElement.scrollWidth-innerWidth,
+      triggerCount: document.querySelectorAll(".spool-trigger").length,
+    };
+  });
+  assert(hero.introEnds<=hero.actionsStart+2,
+    label+": introduction should precede both actions "+JSON.stringify(hero));
+  assert(hero.selectedY<=hero.threadY+2,
+    label+": Selected Work should be the first action "+JSON.stringify(hero));
+  assert(hero.triggerCount===0,
+    label+": the spool should not have an invisible click target");
+  assert(hero.width<3,label+": hero layout causes horizontal overflow");
+  await page.screenshot({path:output+"/"+label+"-hero-actions.png"});
+  await page.locator(".thread-follow-cta").click();
   await page.waitForTimeout(reducedMotion==="reduce"?250:3800);
   if (reducedMotion==="reduce") {
     assert(await page.locator("#design-process").count());

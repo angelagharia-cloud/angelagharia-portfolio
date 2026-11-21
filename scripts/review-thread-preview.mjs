@@ -25,7 +25,7 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
       failedImages.push({ status: response.status(), url: response.url() });
   });
   await page.goto(base, { waitUntil: "domcontentloaded", timeout: 45_000 });
-  await page.locator(".spool-trigger").waitFor({ state: "visible", timeout: 20_000 });
+  await page.locator(".thread-follow-cta").waitFor({ state: "visible", timeout: 20_000 });
   await page.locator("#design-process .landing-entry").waitFor({ state: "attached" });
   // Let the typographic intro and font measurements settle before judging layout.
   await page.waitForTimeout(1800);
@@ -51,12 +51,12 @@ async function inspect(name, viewport, reducedMotion = "no-preference") {
     `Horizontal overflow: document ${geometry.documentWidth}px versus viewport ${geometry.viewportWidth}px`);
 
   if (reducedMotion === "reduce") {
-    await page.locator(".spool-trigger").click();
+    await page.locator(".thread-follow-cta").click();
     await page.waitForTimeout(200);
     await page.screenshot({ path: `${output}/${name}-reduced.png`, fullPage: true });
     assert(await page.locator("#design-process").count(), "Process remains accessible with reduced motion");
   } else {
-    await page.locator(".spool-trigger").click();
+    await page.locator(".thread-follow-cta").click();
     await page.waitForTimeout(850);
     await page.screenshot({ path: `${output}/${name}-spool-release.png`, fullPage: true });
     await page.screenshot({ path: `${output}/${name}-release-viewport.png` });
